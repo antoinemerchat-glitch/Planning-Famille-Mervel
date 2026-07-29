@@ -19,6 +19,7 @@
     --accent: #2F6F5E;
     --accent-ink: #FFFFFF;
     --warn: #C1502E;
+    --holiday-bg: #F5E9D2;
     --repos-bg: repeating-linear-gradient(45deg, #E4E2D8, #E4E2D8 4px, #D6D4C6 4px, #D6D4C6 8px);
     --radius: 10px;
     --shadow: 0 2px 10px rgba(32,38,31,0.08);
@@ -75,6 +76,16 @@
     color:var(--muted);
     margin:0 0 10px;
   }
+  .birthday-row{
+    display:flex;align-items:center;gap:8px;
+    background:#FBF0DD;
+    border:1px solid #EAD9AE;
+    border-radius:8px;
+    padding:7px 10px;
+    font-size:13.5px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
   .avail-row{
     display:flex;
     align-items:center;
@@ -90,7 +101,7 @@
 
   /* Members legend */
   .members-bar{
-    margin:0 16px 16px;
+    margin:0 16px 10px;
     display:flex;
     flex-wrap:wrap;
     gap:8px;
@@ -108,7 +119,7 @@
   .chip button{
     border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 4px;
   }
-  .add-member-btn{
+  .add-member-btn, .birthdays-btn{
     border:1px dashed var(--border);
     background:none;
     border-radius:99px;
@@ -118,6 +129,14 @@
     cursor:pointer;
     font-family:'Inter',sans-serif;
   }
+  .legend-note{
+    margin:0 16px 16px;
+    font-size:11.5px;
+    color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:10px;
+  }
+  .legend-note span{display:inline-flex;align-items:center;gap:5px;}
+  .legend-note i{width:9px;height:9px;border-radius:2px;display:inline-block;}
 
   /* Calendar */
   .cal-nav{
@@ -169,8 +188,8 @@
     left:0;
     background:var(--surface);
     z-index:2;
-    width:56px;
-    min-width:56px;
+    width:58px;
+    min-width:58px;
   }
   thead th{
     position:sticky;
@@ -191,28 +210,32 @@
     font-family:'IBM Plex Mono',monospace;
     vertical-align:middle;
   }
-  td.col-day .dnum{font-size:13px;font-weight:600;}
+  td.col-day .dnum{font-size:13px;font-weight:600;display:flex;align-items:center;gap:3px;}
   td.col-day .dwd{font-size:10px;color:var(--muted);text-transform:uppercase;}
   tr.weekend td.col-day{background:#F1EFE6;}
+  tr.holiday td.col-day{background:var(--holiday-bg);}
   tr.is-today td.col-day{background:#E4EFE8;}
   tr.is-today td.col-day .dnum{color:var(--accent);}
 
   td.member-cell{
-    padding:5px 6px;
+    padding:4px 5px;
     cursor:pointer;
     vertical-align:middle;
   }
   td.member-cell:hover{background:#F7F6F0;}
-  .seg-mini{display:flex;gap:2px;height:16px;}
-  .seg-mini div{
-    flex:1;
-    border-radius:3px;
-    background:#EEECE1;
-    border:1px solid var(--border);
+  .chip-stack{display:flex;flex-direction:column;gap:2px;}
+  .evt-chip{
+    font-size:10px;
+    line-height:1.35;
+    padding:2px 5px;
+    border-radius:5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-weight:600;
   }
-  .seg-mini div.busy{border:none;}
-  .seg-mini div.repos{background-image:var(--repos-bg);border:none;}
-  .cell-icons{font-size:10px;letter-spacing:1px;color:var(--muted);margin-top:3px;min-height:11px;}
+  .evt-chip.repos{background-image:var(--repos-bg);color:var(--ink);}
+  .cell-empty{color:var(--border);font-size:11px;text-align:center;}
 
   /* FAB */
   .fab{
@@ -263,18 +286,14 @@
   .sheet .closebtn{border:none;background:none;font-size:20px;color:var(--muted);cursor:pointer;}
   .sheet .subdate{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:14px;}
 
-  /* Day panel availability mini strip */
-  .seg-table{margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-  .seg-row{display:flex;align-items:center;border-top:1px solid var(--border);}
-  .seg-row:first-child{border-top:none;}
-  .seg-name{width:88px;flex-shrink:0;font-size:12px;font-weight:600;padding:6px 8px;}
-  .seg-cells{display:flex;flex:1;gap:2px;padding:6px 6px 6px 0;}
-  .seg-cell{flex:1;height:20px;border-radius:4px;background:#EEECE1;border:1px solid var(--border);position:relative;}
-  .seg-cell.busy{border:none;}
-  .seg-cell.repos{background-image:var(--repos-bg);border:none;}
-  .seg-label{text-align:center;font-size:9px;color:var(--muted);margin-top:2px;}
-  .seg-labels{display:flex;flex:1;gap:2px;margin-left:88px;padding-right:6px;}
-  .seg-labels div{flex:1;text-align:center;}
+  /* Day panel per-member chip summary */
+  .day-summary{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .day-summary-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-top:1px solid var(--border);}
+  .day-summary-row:first-child{border-top:none;}
+  .day-summary-name{width:76px;flex-shrink:0;font-size:12px;font-weight:600;padding-top:2px;}
+  .day-summary-chips{flex:1;display:flex;flex-wrap:wrap;gap:4px;}
+  .day-summary-chips .evt-chip{font-size:11px;padding:3px 7px;}
+  .day-summary-empty{font-size:12px;color:var(--muted);padding-top:2px;}
 
   /* event list */
   .evt-item{
@@ -304,7 +323,7 @@
     display:flex;align-items:center;gap:6px;font-weight:500;background:var(--surface);
   }
   .member-opt.selected{border-color:currentColor;background:color-mix(in srgb, currentColor 12%, white);}
-  select, input[type=text], input[type=date]{
+  select, input[type=text], input[type=date], input[type=time]{
     width:100%;
     border:1px solid var(--border);
     border-radius:8px;
@@ -319,9 +338,18 @@
     border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;background:var(--surface);
   }
   .type-opt.selected{border-color:var(--accent);background:#EAF3EF;}
+  .preset-picker{display:flex;flex-direction:column;gap:6px;}
+  .preset-opt{
+    border:2px solid transparent;border-radius:8px;padding:9px 11px;font-size:13px;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;font-weight:600;
+  }
+  .preset-opt.selected{border-color:var(--ink);}
+  .preset-opt .t{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;opacity:0.85;}
   .slot-picker{display:flex;flex-wrap:wrap;gap:6px;}
   .slot-opt{border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;background:var(--surface);}
   .slot-opt.selected{border-color:var(--accent);background:#EAF3EF;}
+  .time-row{display:flex;gap:8px;}
+  .time-row > div{flex:1;}
   .submitbtn{
     margin-top:16px;width:100%;
     background:var(--accent);color:var(--accent-ink);
@@ -332,6 +360,11 @@
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;}
   .color-row{display:flex;align-items:center;gap:10px;margin-top:10px;}
   .color-row input[type=color]{width:44px;height:34px;border:1px solid var(--border);border-radius:6px;padding:2px;background:var(--surface);}
+
+  .bday-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);}
+  .bday-item:first-of-type{border-top:none;}
+  .bday-name{flex:1;font-size:14px;font-weight:600;}
+  .bday-date{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
 
   .sync-note{
     margin:20px 16px 0;
@@ -351,10 +384,12 @@
 
 <section class="today-card">
   <h2>Aujourd'hui — qui est dispo</h2>
+  <div id="todayBirthdays"></div>
   <div id="todayAvail"></div>
 </section>
 
 <div class="members-bar" id="membersBar"></div>
+<div class="legend-note" id="legendNote"></div>
 
 <div class="cal-nav">
   <div class="month-label" id="monthLabel"></div>
@@ -381,7 +416,7 @@
   <div class="sheet">
     <h3>Détail du jour <button class="closebtn" id="closeDayPanel">✕</button></h3>
     <div class="subdate mono" id="dayPanelDate"></div>
-    <div id="daySegTable"></div>
+    <div id="daySummary"></div>
     <div id="dayEvtList"></div>
     <form class="addform" id="dayAddForm"></form>
   </div>
@@ -403,9 +438,25 @@
     <input type="text" id="newMemberName" placeholder="Ex : Léa">
     <div class="color-row">
       <input type="color" id="newMemberColor" value="#3A5A8C">
-      <span class="hint">Couleur utilisée sur tout le planning</span>
+      <span class="hint">Couleur utilisée pour ses RDV / gardes enfant / autres</span>
     </div>
     <button class="submitbtn" id="saveMemberBtn">Ajouter ce membre</button>
+  </div>
+</div>
+
+<!-- Birthdays modal -->
+<div class="overlay" id="birthdayOverlay">
+  <div class="sheet">
+    <h3>🎂 Anniversaires <button class="closebtn" id="closeBirthdayPanel">✕</button></h3>
+    <div id="bdayList"></div>
+    <form class="addform" id="bdayAddForm">
+      <label>Prénom</label>
+      <input type="text" id="bdayName" placeholder="Ex : Mamie Jeanne">
+      <label>Date de naissance</label>
+      <input type="date" id="bdayDate">
+      <div class="hint">Seuls le jour et le mois comptent : ça revient chaque année automatiquement.</div>
+      <button type="submit" class="submitbtn">Ajouter</button>
+    </form>
   </div>
 </div>
 
@@ -419,64 +470,152 @@ const TYPES = [
   {id:'repos', label:'Repos', icon:'💤'},
   {id:'autre', label:'Autre', icon:'▪️'},
 ];
-const SEGMENTS = [
-  {id:'nuit',      label:'Nuit',   h0:0,  h1:6},
-  {id:'matin',     label:'Matin',  h0:6,  h1:12},
-  {id:'apresmidi', label:'Aprèm',  h0:12, h1:18},
-  {id:'soir',      label:'Soir',   h0:18, h1:24},
+
+// Créneaux fixes EDF / Pompiers — couleur + horaires imposés
+const SHIFT_PRESETS = [
+  {id:'edf-matin',   typeId:'edf',      label:'EDF matin',       start:'05:45', end:'13:15', color:'#2E6FB0', textColor:'#fff'},
+  {id:'edf-aprem',   typeId:'edf',      label:'EDF après-midi',  start:'13:15', end:'20:45', color:'#D9A824', textColor:'#2A2200'},
+  {id:'edf-nuit',    typeId:'edf',      label:'EDF nuit',        start:'20:45', end:'05:45', color:'#C1372E', textColor:'#fff'},
+  {id:'edf-journee', typeId:'edf',      label:'EDF journée',     start:'07:45', end:'16:45', color:'#2F6F5E', textColor:'#fff'},
+  {id:'pomp-jour',   typeId:'pompiers', label:'Pompiers journée',start:'07:00', end:'19:00', color:'#7A4E9E', textColor:'#fff'},
+  {id:'pomp-nuit',   typeId:'pompiers', label:'Pompiers nuit',   start:'19:00', end:'07:00', color:'#7A1F2B', textColor:'#fff'},
 ];
-const SLOTS = [
-  {id:'nuit',      label:'Nuit (garde)', segs:['soir']}, // + spillover nuit next day handled specially
-  {id:'matin',     label:'Matin',        segs:['matin']},
-  {id:'apresmidi', label:'Après-midi',   segs:['apresmidi']},
-  {id:'soir',      label:'Soirée',       segs:['soir']},
-  {id:'journee',   label:'Journée entière', segs:['nuit','matin','apresmidi','soir']},
+const OVERNIGHT_PRESET_IDS = ['edf-nuit','pomp-nuit'];
+
+// Créneaux génériques pour RDV / garde enfant / autre / repos manuel — couleur = membre
+const GENERIC_SLOTS = [
+  {id:'matin',     label:'Matin',           start:'06:00', end:'12:00'},
+  {id:'apresmidi', label:'Après-midi',      start:'12:00', end:'18:00'},
+  {id:'soir',      label:'Soirée',          start:'18:00', end:'22:00'},
+  {id:'journee',   label:'Journée entière', start:'00:00', end:'23:59'},
 ];
-const DEFAULT_COLORS = ['#2F6F5E','#3A5A8C','#C1502E','#B08900','#7A4E9E','#1E8FA6'];
-const REPOS_END_LABEL = '13h';
+
+const DEFAULT_COLORS = ['#3A5A8C','#B08900','#1E8FA6','#5B7F3A','#9C5B8C','#8C6239'];
+const REPOS_END_DEFAULT = '13:00';
+
+// Vacances scolaires — Zone A (académie de Grenoble, dont fait partie l'Ardèche)
+// À compléter chaque année quand le calendrier suivant est publié.
+const SCHOOL_HOLIDAYS = [
+  {label:'Vacances de la Toussaint', start:'2025-10-18', end:'2025-11-03'},
+  {label:'Vacances de Noël',         start:'2025-12-20', end:'2026-01-05'},
+  {label:"Vacances d'hiver",         start:'2026-02-07', end:'2026-02-23'},
+  {label:'Vacances de printemps',    start:'2026-04-04', end:'2026-04-20'},
+  {label:"Pont de l'Ascension",      start:'2026-05-13', end:'2026-05-18'},
+  {label:"Vacances d'été",           start:'2026-07-04', end:'2026-09-01'},
+  {label:'Vacances de la Toussaint', start:'2026-10-17', end:'2026-11-02'},
+  {label:'Vacances de Noël',         start:'2026-12-19', end:'2027-01-04'},
+  {label:"Vacances d'hiver",         start:'2027-02-13', end:'2027-03-01'},
+  {label:'Vacances de printemps',    start:'2027-04-10', end:'2027-04-26'},
+];
 
 const WEEKDAY_NAMES = ['lun','mar','mer','jeu','ven','sam','dim'];
 const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
+/* ---------- Config API ---------- */
+// Colle ici l'URL de ton déploiement Apps Script (voir README.md)
+const API_URL = 'https://script.google.com/macros/s/AKfycbwltWjEuhwbuq81H1tM3_RpvkoT1o6ucCk90Eaj_gJLqf5mTplLZKb6t6O-iKgpCu58iA/exec';
+
 /* ---------- State ---------- */
 let members = [];
 let events = [];
+let birthdays = [];
 let currentMonth = new Date();
 currentMonth.setDate(1);
-let selectedDate = null; // 'YYYY-MM-DD'
+let selectedDate = null;
 let addFormSelectedMembers = [];
 let addFormType = 'rdv';
-let addFormSlot = 'matin';
+let addFormPresetId = null;
+let addFormSlotId = 'matin';
 
-function todayStr(){
-  const d = new Date();
+function todayStr(){ return fmt(new Date()); }
+function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function addDays(dateStr, n){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+n);
   return fmt(d);
 }
-function fmt(d){
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function toMinutes(hhmm){
+  const [h,m] = hhmm.split(':').map(Number);
+  return h*60+m;
 }
-function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 
-/* ---------- Config API ---------- */
-// Colle ici l'URL de ton déploiement Apps Script (voir README.md)
-const API_URL = 'https://script.google.com/macros/s/AKfycbzYA1OlLyXYeCKYNc0F3NbwkoIASkMoE1WOmD3azleOEbMm1ji69MON_lY7bLQ-bhQ04w/exec';
+/* ---------- Event time/color helpers ---------- */
+function eventRange(ev){
+  if(ev.presetId){
+    const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
+    if(p) return {start:p.start, end:p.end};
+  }
+  return {start: ev.start || '00:00', end: ev.end || '23:59'};
+}
+function eventIsOvernight(ev){
+  const r = eventRange(ev);
+  return toMinutes(r.end) <= toMinutes(r.start);
+}
+function eventColor(ev, member){
+  if(ev.type==='repos') return null; // hachuré
+  if(ev.presetId){
+    const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
+    if(p) return {bg:p.color, fg:p.textColor};
+  }
+  return {bg: member ? member.color : '#999', fg:'#fff'};
+}
+function eventLabel(ev){
+  if(ev.presetId){
+    const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
+    if(p) return ev.label ? `${p.label} — ${ev.label}` : p.label;
+  }
+  const t = TYPES.find(x=>x.id===ev.type);
+  return ev.label || (t? t.label : ev.type);
+}
+function eventShortText(ev){
+  const r = eventRange(ev);
+  if(ev.type==='repos') return 'Repos → '+r.end;
+  if(ev.presetId){
+    const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
+    return p ? p.label.replace(/^(EDF|Pompiers)\s*/,'') : r.start;
+  }
+  return ev.label ? ev.label : (TYPES.find(x=>x.id===ev.type)?.label || ev.type);
+}
+function eventActiveAt(ev, dateStr, minutesOfDay){
+  const r = eventRange(ev);
+  const startMin = toMinutes(r.start), endMin = toMinutes(r.end);
+  if(endMin > startMin){
+    return dateStr===ev.date && minutesOfDay>=startMin && minutesOfDay<endMin;
+  }
+  if(dateStr===ev.date && minutesOfDay>=startMin) return true;
+  if(dateStr===addDays(ev.date,1) && minutesOfDay<endMin) return true;
+  return false;
+}
 
+/* ---------- Birthdays ---------- */
+function birthdaysOn(dateStr){
+  const md = dateStr.slice(5);
+  return birthdays.filter(b=> b.date && b.date.slice(5)===md);
+}
+
+/* ---------- School holidays ---------- */
+function holidayOn(dateStr){
+  return SCHOOL_HOLIDAYS.find(h=> dateStr>=h.start && dateStr<h.end) || null;
+}
+
+/* ---------- Storage (Google Sheets via Apps Script) ---------- */
 function setSyncNote(text, isError){
   const el = document.getElementById('syncNote');
   if(!el) return;
   el.textContent = text;
   el.style.color = isError ? 'var(--warn)' : 'var(--muted)';
 }
-
-/* ---------- Storage (Google Sheets via Apps Script) ---------- */
+function defaultMembers(){
+  return [
+    {id:uid(), name:'Toi', color: DEFAULT_COLORS[0]},
+    {id:uid(), name:'Copine', color: DEFAULT_COLORS[1]},
+  ];
+}
 async function loadData(){
   if(API_URL.includes('COLLE_ICI')){
     setSyncNote('⚠️ Aucune API configurée — voir README.md pour connecter le Google Sheet.', true);
-    members = [
-      {id:uid(), name:'Toi', color: DEFAULT_COLORS[0]},
-      {id:uid(), name:'Copine', color: DEFAULT_COLORS[1]},
-    ];
-    events = [];
+    members = defaultMembers(); events = []; birthdays = [];
     return;
   }
   try{
@@ -486,81 +625,35 @@ async function loadData(){
     const data = await res.json();
     members = (data.members && data.members.length) ? data.members : [];
     events = data.events || [];
-    if(!members.length){
-      members = [
-        {id:uid(), name:'Toi', color: DEFAULT_COLORS[0]},
-        {id:uid(), name:'Copine', color: DEFAULT_COLORS[1]},
-      ];
-      await saveMembers();
-    }
+    birthdays = data.birthdays || [];
+    if(!members.length){ members = defaultMembers(); await saveMembers(); }
     setSyncNote('Synchronisé avec le Google Sheet familial.');
   }catch(err){
     console.error(err);
     setSyncNote('⚠️ Connexion au Sheet impossible — données non sauvegardées pour le moment.', true);
-    if(!members.length){
-      members = [
-        {id:uid(), name:'Toi', color: DEFAULT_COLORS[0]},
-        {id:uid(), name:'Copine', color: DEFAULT_COLORS[1]},
-      ];
-    }
+    if(!members.length) members = defaultMembers();
   }
 }
-async function saveMembers(){
+async function postAction(action, payload){
   if(API_URL.includes('COLLE_ICI')) return;
   try{
     await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'saveMembers', members})
+      body: JSON.stringify({action, ...payload})
     });
-  }catch(e){ console.error(e); setSyncNote('⚠️ Échec de la sauvegarde des membres.', true); }
+  }catch(e){ console.error(e); setSyncNote('⚠️ Échec de la sauvegarde.', true); }
 }
-async function saveEvents(){
-  if(API_URL.includes('COLLE_ICI')) return;
-  try{
-    await fetch(API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'saveEvents', events})
-    });
-  }catch(e){ console.error(e); setSyncNote('⚠️ Échec de la sauvegarde des événements.', true); }
-}
-
-/* ---------- Availability logic ---------- */
-// returns array of {segId, status:'busy'|'repos'|'free', evt} for a given date + member
-function segmentsForMemberDate(memberId, dateStr){
-  const result = {};
-  SEGMENTS.forEach(s=> result[s.id] = {status:'free', evt:null});
-
-  // events dated today for this member
-  events.filter(ev=>ev.date===dateStr && ev.memberId===memberId).forEach(ev=>{
-    const slot = SLOTS.find(s=>s.id===ev.slot) || SLOTS[1];
-    slot.segs.forEach(segId=>{
-      result[segId] = {status: ev.type==='repos' ? 'repos':'busy', evt: ev};
-    });
-  });
-
-  // spillover: if member had a 'nuit' slot event the day before, mark 'nuit' segment busy today too
-  const prev = new Date(dateStr);
-  prev.setDate(prev.getDate()-1);
-  const prevStr = fmt(prev);
-  const prevNightEvt = events.find(ev=>ev.date===prevStr && ev.memberId===memberId && ev.slot==='nuit');
-  if(prevNightEvt && result['nuit'].status==='free'){
-    result['nuit'] = {status:'busy', evt: prevNightEvt};
-  }
-  return result;
-}
-
-function currentSegmentId(){
-  const h = new Date().getHours();
-  return SEGMENTS.find(s=> h>=s.h0 && h<s.h1)?.id || 'matin';
-}
+async function saveMembers(){ await postAction('saveMembers', {members}); }
+async function saveEvents(){ await postAction('saveEvents', {events}); }
+async function saveBirthdays(){ await postAction('saveBirthdays', {birthdays}); }
 
 /* ---------- Rendering ---------- */
 function render(){
   renderTodayPill();
   renderTodayAvail();
   renderMembersBar();
+  renderLegend();
   renderCalendar();
 }
 
@@ -571,24 +664,25 @@ function renderTodayPill(){
 }
 
 function renderTodayAvail(){
+  const bdayBox = document.getElementById('todayBirthdays');
+  const todays = birthdaysOn(todayStr());
+  bdayBox.innerHTML = todays.map(b=> `<div class="birthday-row">🎂 Anniversaire de ${b.name}</div>`).join('');
+
   const box = document.getElementById('todayAvail');
   box.innerHTML = '';
   const ds = todayStr();
-  const curSeg = currentSegmentId();
+  const now = new Date();
+  const nowMin = now.getHours()*60+now.getMinutes();
+
   members.forEach(m=>{
-    const segs = segmentsForMemberDate(m.id, ds);
-    const cur = segs[curSeg];
+    const active = events.find(ev=> ev.memberId===m.id && eventActiveAt(ev, ds, nowMin));
     const row = document.createElement('div');
     row.className = 'avail-row';
     let statusText, statusClass = 'avail-status';
-    if(cur.status==='free'){
+    if(!active){
       statusText = 'Disponible';
-    } else if(cur.status==='repos'){
-      statusText = 'Repos (post-garde) jusqu\'à '+REPOS_END_LABEL;
-      statusClass += ' busy';
     } else {
-      const t = TYPES.find(t=>t.id===cur.evt.type);
-      statusText = (t?t.icon+' ':'') + (cur.evt.label || (t?t.label:'Occupé'));
+      statusText = eventLabel(active);
       statusClass += ' busy';
     }
     row.innerHTML = `<div class="avail-member"><span class="dot" style="background:${m.color}"></span>${m.name}</div>
@@ -620,6 +714,19 @@ function renderMembersBar(){
   addBtn.textContent = '+ Membre';
   addBtn.onclick = ()=> document.getElementById('memberOverlay').classList.add('open');
   bar.appendChild(addBtn);
+
+  const bdayBtn = document.createElement('button');
+  bdayBtn.className = 'birthdays-btn';
+  bdayBtn.textContent = '🎂 Anniversaires';
+  bdayBtn.onclick = ()=> openBirthdayPanel();
+  bar.appendChild(bdayBtn);
+}
+
+function renderLegend(){
+  const el = document.getElementById('legendNote');
+  el.innerHTML = SHIFT_PRESETS.map(p=>
+    `<span><i style="background:${p.color}"></i>${p.label}</span>`
+  ).join('') + `<span><i style="background:repeating-linear-gradient(45deg,#E4E2D8,#E4E2D8 2px,#D6D4C6 2px,#D6D4C6 4px)"></i>Repos</span>`;
 }
 
 function renderCalendar(){
@@ -631,7 +738,6 @@ function renderCalendar(){
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const ds = todayStr();
 
-  // header row: "Jour" + one column per member
   const head = document.getElementById('monthTableHead');
   head.innerHTML = '<th class="col-day">Jour</th>' + members.map(m=>
     `<th class="member-th"><div class="th-inner"><span class="dot" style="background:${m.color}"></span>${m.name}</div></th>`
@@ -643,35 +749,37 @@ function renderCalendar(){
   for(let day=1; day<=daysInMonth; day++){
     const d = new Date(year, month, day);
     const dateStr = fmt(d);
-    const dow = (d.getDay()+6)%7; // Monday=0
+    const dow = (d.getDay()+6)%7;
     const isWeekend = dow>=5;
+    const holiday = holidayOn(dateStr);
+    const bdays = birthdaysOn(dateStr);
 
     const tr = document.createElement('tr');
     if(isWeekend) tr.classList.add('weekend');
+    if(holiday) tr.classList.add('holiday');
     if(dateStr===ds) tr.classList.add('is-today');
 
-    let rowHtml = `<td class="col-day"><div class="dnum">${day}</div><div class="dwd">${WEEKDAY_NAMES[dow]}</div></td>`;
+    const dayTitle = holiday ? holiday.label : '';
+    let rowHtml = `<td class="col-day" title="${dayTitle}">
+      <div class="dnum">${day}${bdays.length ? ' 🎂' : ''}${holiday && !bdays.length ? ' 🏖' : ''}</div>
+      <div class="dwd">${WEEKDAY_NAMES[dow]}</div>
+    </td>`;
 
     members.forEach(m=>{
-      const segs = segmentsForMemberDate(m.id, dateStr);
-      const barHtml = SEGMENTS.map(s=>{
-        const st = segs[s.id];
-        let cls = st.status==='busy' ? 'busy' : (st.status==='repos' ? 'repos' : '');
-        const style = st.status==='busy' ? `style="background:${m.color}"` : '';
-        return `<div class="${cls}" ${style} title="${s.label}"></div>`;
-      }).join('');
-
-      const dayEvtsForMember = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
-      const icons = [...new Set(dayEvtsForMember.map(ev=>{
-        if(ev.type==='repos') return '💤';
-        const t = TYPES.find(x=>x.id===ev.type);
-        return t? t.icon : '';
-      }))].join('');
-
-      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}">
-        <div class="seg-mini">${barHtml}</div>
-        <div class="cell-icons">${icons}</div>
-      </td>`;
+      const dayEvts = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
+      let cellInner;
+      if(!dayEvts.length){
+        cellInner = '';
+      } else {
+        cellInner = '<div class="chip-stack">' + dayEvts.map(ev=>{
+          const col = eventColor(ev, m);
+          const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
+          const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '');
+          const r = eventRange(ev);
+          return `<div class="${cls}" ${style} title="${eventLabel(ev)} (${r.start}–${r.end})">${eventShortText(ev)}</div>`;
+        }).join('') + '</div>';
+      }
+      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}">${cellInner}</td>`;
     });
 
     tr.innerHTML = rowHtml;
@@ -690,40 +798,35 @@ function openDayPanel(dateStr, presetMemberId){
   document.getElementById('dayPanelDate').textContent =
     WEEKDAY_NAMES[(d.getDay()+6)%7]+' '+d.getDate()+' '+MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
 
-  // segment table
-  const segBox = document.getElementById('daySegTable');
-  let rows = '<div class="seg-table">';
-  members.forEach(m=>{
-    const segs = segmentsForMemberDate(m.id, dateStr);
-    rows += '<div class="seg-row"><div class="seg-name">'+m.name+'</div><div class="seg-cells">';
-    SEGMENTS.forEach(s=>{
-      const st = segs[s.id];
-      let cls = 'seg-cell';
-      let style = '';
-      if(st.status==='busy'){ cls+=' busy'; style=`background:${m.color}`; }
-      else if(st.status==='repos'){ cls+=' repos'; }
-      rows += `<div class="${cls}" style="${style}" title="${s.label}: ${st.status}"></div>`;
-    });
-    rows += '</div></div>';
-  });
-  rows += '</div><div class="seg-labels">'+SEGMENTS.map(s=>`<div>${s.label}</div>`).join('')+'</div>';
-  segBox.innerHTML = rows;
+  const summaryBox = document.getElementById('daySummary');
+  summaryBox.innerHTML = '<div class="day-summary">' + members.map(m=>{
+    const dayEvts = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
+    const chipsHtml = dayEvts.length ? dayEvts.map(ev=>{
+      const col = eventColor(ev, m);
+      const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
+      const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '');
+      const r = eventRange(ev);
+      return `<div class="${cls}" ${style}>${eventShortText(ev)} · ${r.start}–${r.end}</div>`;
+    }).join('') : '<div class="day-summary-empty">Rien de prévu</div>';
+    return `<div class="day-summary-row">
+      <div class="day-summary-name"><span class="dot" style="background:${m.color}"></span> ${m.name}</div>
+      <div class="day-summary-chips">${chipsHtml}</div>
+    </div>`;
+  }).join('') + '</div>';
 
-  // event list
   const listBox = document.getElementById('dayEvtList');
-  const dayEvts = events.filter(ev=>ev.date===dateStr).sort((a,b)=> (a.slot>b.slot?1:-1));
+  const dayEvts = events.filter(ev=>ev.date===dateStr);
   if(!dayEvts.length){
     listBox.innerHTML = '<div class="empty-note">Rien de prévu ce jour-là.</div>';
   } else {
     listBox.innerHTML = dayEvts.map(ev=>{
       const m = members.find(x=>x.id===ev.memberId);
-      const t = TYPES.find(x=>x.id===ev.type);
-      const slot = SLOTS.find(x=>x.id===ev.slot);
+      const r = eventRange(ev);
       return `<div class="evt-item">
         <span class="evt-dot" style="background:${m?m.color:'#999'}"></span>
         <div class="evt-body">
-          <div class="evt-title">${t?t.icon:''} ${ev.label || (t?t.label:'')}${ev.auto?' <span style=\"color:var(--muted);font-weight:400\">(auto)</span>':''}</div>
-          <div class="evt-sub">${m?m.name:'?'} · ${slot?slot.label:ev.slot}</div>
+          <div class="evt-title">${eventLabel(ev)}${ev.auto?' <span style="color:var(--muted);font-weight:400">(auto)</span>':''}</div>
+          <div class="evt-sub">${m?m.name:'?'} · ${r.start}–${r.end}</div>
         </div>
         <button class="evt-del" data-id="${ev.id}">🗑</button>
       </div>`;
@@ -731,7 +834,6 @@ function openDayPanel(dateStr, presetMemberId){
     listBox.querySelectorAll('.evt-del').forEach(btn=>{
       btn.onclick = async ()=>{
         const id = btn.dataset.id;
-        const target = events.find(e=>e.id===id);
         events = events.filter(e=> e.id!==id && e.linkedTo!==id);
         await saveEvents();
         openDayPanel(dateStr);
@@ -749,7 +851,8 @@ function openDayPanel(dateStr, presetMemberId){
 function renderAddForm(el, presetDate, presetMemberId){
   addFormSelectedMembers = presetMemberId ? [presetMemberId] : (members[0] ? [members[0].id] : []);
   addFormType = 'rdv';
-  addFormSlot = 'matin';
+  addFormPresetId = null;
+  addFormSlotId = 'matin';
 
   el.innerHTML = `
     <label>Qui</label>
@@ -761,14 +864,13 @@ function renderAddForm(el, presetDate, presetMemberId){
     <label>Type</label>
     <div class="type-picker" id="tpk"></div>
 
-    <label>Créneau</label>
-    <div class="slot-picker" id="spk"></div>
+    <div id="dynamicSlotZone"></div>
 
     <label>Note (optionnel)</label>
     <input type="text" id="evLabel" placeholder="Ex : Pédiatre, astreinte...">
 
     <div class="hint" id="nightHint" style="display:none;">
-      Une garde de nuit bloque automatiquement le repos le lendemain matin jusqu'à ${REPOS_END_LABEL}.
+      Une garde de nuit bloque automatiquement le repos le lendemain matin jusqu'à ${REPOS_END_DEFAULT}.
     </div>
 
     <button type="submit" class="submitbtn">Ajouter</button>
@@ -798,25 +900,63 @@ function renderAddForm(el, presetDate, presetMemberId){
     opt.textContent = t.icon+' '+t.label;
     opt.onclick = ()=>{
       addFormType = t.id;
+      addFormPresetId = null;
       tpk.querySelectorAll('.type-opt').forEach(o=>o.classList.remove('selected'));
       opt.classList.add('selected');
+      renderDynamicZone();
     };
     tpk.appendChild(opt);
   });
 
-  const spk = el.querySelector('#spk');
-  SLOTS.forEach(s=>{
-    const opt = document.createElement('div');
-    opt.className = 'slot-opt'+(s.id===addFormSlot?' selected':'');
-    opt.textContent = s.label;
-    opt.onclick = ()=>{
-      addFormSlot = s.id;
-      spk.querySelectorAll('.slot-opt').forEach(o=>o.classList.remove('selected'));
-      opt.classList.add('selected');
-      el.querySelector('#nightHint').style.display = (s.id==='nuit') ? 'block' : 'none';
-    };
-    spk.appendChild(opt);
-  });
+  function renderDynamicZone(){
+    const zone = el.querySelector('#dynamicSlotZone');
+    const hint = el.querySelector('#nightHint');
+
+    if(addFormType==='edf' || addFormType==='pompiers'){
+      const presets = SHIFT_PRESETS.filter(p=>p.typeId===addFormType);
+      addFormPresetId = presets[0].id;
+      zone.innerHTML = `<label>Créneau</label><div class="preset-picker" id="ppk"></div>`;
+      const ppk = zone.querySelector('#ppk');
+      presets.forEach(p=>{
+        const opt = document.createElement('div');
+        opt.className = 'preset-opt'+(p.id===addFormPresetId?' selected':'');
+        opt.style.background = p.color;
+        opt.style.color = p.textColor;
+        opt.innerHTML = `<span>${p.label}</span><span class="t">${p.start}–${p.end}</span>`;
+        opt.onclick = ()=>{
+          addFormPresetId = p.id;
+          ppk.querySelectorAll('.preset-opt').forEach(o=>o.classList.remove('selected'));
+          opt.classList.add('selected');
+          hint.style.display = OVERNIGHT_PRESET_IDS.includes(p.id) ? 'block' : 'none';
+        };
+        ppk.appendChild(opt);
+      });
+      hint.style.display = OVERNIGHT_PRESET_IDS.includes(addFormPresetId) ? 'block' : 'none';
+    } else if(addFormType==='repos'){
+      hint.style.display = 'none';
+      zone.innerHTML = `
+        <label>Repos jusqu'à</label>
+        <input type="time" id="reposEnd" value="${REPOS_END_DEFAULT}">
+      `;
+    } else {
+      hint.style.display = 'none';
+      addFormSlotId = 'matin';
+      zone.innerHTML = `<label>Créneau</label><div class="slot-picker" id="spk"></div>`;
+      const spk = zone.querySelector('#spk');
+      GENERIC_SLOTS.forEach(s=>{
+        const opt = document.createElement('div');
+        opt.className = 'slot-opt'+(s.id===addFormSlotId?' selected':'');
+        opt.textContent = s.label;
+        opt.onclick = ()=>{
+          addFormSlotId = s.id;
+          spk.querySelectorAll('.slot-opt').forEach(o=>o.classList.remove('selected'));
+          opt.classList.add('selected');
+        };
+        spk.appendChild(opt);
+      });
+    }
+  }
+  renderDynamicZone();
 
   el.onsubmit = async (e)=>{
     e.preventDefault();
@@ -825,20 +965,25 @@ function renderAddForm(el, presetDate, presetMemberId){
     const label = el.querySelector('#evLabel').value.trim();
 
     for(const memberId of addFormSelectedMembers){
-      const newEvt = {
-        id: uid(), date, memberId, type: addFormType, slot: addFormSlot,
-        label, auto:false, linkedTo:null
-      };
-      events.push(newEvt);
-
-      if(addFormSlot==='nuit'){
-        const next = new Date(date+'T00:00:00');
-        next.setDate(next.getDate()+1);
-        const nextStr = fmt(next);
-        events.push({
-          id: uid(), date: nextStr, memberId, type:'repos', slot:'matin',
-          label: `Repos post-garde jusqu'à ${REPOS_END_LABEL}`, auto:true, linkedTo:newEvt.id
-        });
+      let newEvt;
+      if(addFormType==='edf' || addFormType==='pompiers'){
+        newEvt = { id: uid(), date, memberId, type: addFormType, presetId: addFormPresetId, label, auto:false, linkedTo:null };
+        events.push(newEvt);
+        if(OVERNIGHT_PRESET_IDS.includes(addFormPresetId)){
+          events.push({
+            id: uid(), date: addDays(date,1), memberId, type:'repos',
+            start:'00:00', end: REPOS_END_DEFAULT,
+            label: `Repos post-garde jusqu'à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
+          });
+        }
+      } else if(addFormType==='repos'){
+        const endVal = el.querySelector('#reposEnd').value || REPOS_END_DEFAULT;
+        newEvt = { id: uid(), date, memberId, type:'repos', start:'00:00', end:endVal, label, auto:false, linkedTo:null };
+        events.push(newEvt);
+      } else {
+        const slot = GENERIC_SLOTS.find(s=>s.id===addFormSlotId);
+        newEvt = { id: uid(), date, memberId, type: addFormType, start: slot.start, end: slot.end, label, auto:false, linkedTo:null };
+        events.push(newEvt);
       }
     }
     await saveEvents();
@@ -849,19 +994,55 @@ function renderAddForm(el, presetDate, presetMemberId){
   };
 }
 
+/* ---------- Birthdays panel ---------- */
+function openBirthdayPanel(){
+  renderBirthdayList();
+  document.getElementById('birthdayOverlay').classList.add('open');
+}
+function renderBirthdayList(){
+  const box = document.getElementById('bdayList');
+  if(!birthdays.length){
+    box.innerHTML = '<div class="empty-note">Aucun anniversaire enregistré pour l\'instant.</div>';
+    return;
+  }
+  const sorted = [...birthdays].sort((a,b)=> a.date.slice(5).localeCompare(b.date.slice(5)));
+  box.innerHTML = sorted.map(b=>{
+    const d = new Date(b.date+'T00:00:00');
+    const dstr = d.getDate()+' '+MONTH_NAMES[d.getMonth()];
+    return `<div class="bday-item">
+      <div class="bday-name">🎂 ${b.name}</div>
+      <div class="bday-date">${dstr}</div>
+      <button class="evt-del" data-id="${b.id}">🗑</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.evt-del').forEach(btn=>{
+    btn.onclick = async ()=>{
+      birthdays = birthdays.filter(b=>b.id!==btn.dataset.id);
+      await saveBirthdays();
+      renderBirthdayList();
+      renderCalendar();
+      renderTodayAvail();
+    };
+  });
+}
+document.getElementById('bdayAddForm').onsubmit = async (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('bdayName').value.trim();
+  const date = document.getElementById('bdayDate').value;
+  if(!name || !date){ alert('Indique un prénom et une date.'); return; }
+  birthdays.push({id:uid(), name, date});
+  await saveBirthdays();
+  document.getElementById('bdayName').value = '';
+  document.getElementById('bdayDate').value = '';
+  renderBirthdayList();
+  renderCalendar();
+  renderTodayAvail();
+};
+
 /* ---------- Wiring ---------- */
-document.getElementById('btnPrev').onclick = ()=>{
-  currentMonth.setMonth(currentMonth.getMonth()-1);
-  renderCalendar();
-};
-document.getElementById('btnNext').onclick = ()=>{
-  currentMonth.setMonth(currentMonth.getMonth()+1);
-  renderCalendar();
-};
-document.getElementById('btnToday').onclick = ()=>{
-  currentMonth = new Date(); currentMonth.setDate(1);
-  renderCalendar();
-};
+document.getElementById('btnPrev').onclick = ()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); };
+document.getElementById('btnNext').onclick = ()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); };
+document.getElementById('btnToday').onclick = ()=>{ currentMonth = new Date(); currentMonth.setDate(1); renderCalendar(); };
 document.getElementById('closeDayPanel').onclick = ()=> document.getElementById('dayOverlay').classList.remove('open');
 document.getElementById('dayOverlay').onclick = (e)=>{ if(e.target.id==='dayOverlay') e.currentTarget.classList.remove('open'); };
 
@@ -885,6 +1066,9 @@ document.getElementById('saveMemberBtn').onclick = async ()=>{
   render();
 };
 
+document.getElementById('closeBirthdayPanel').onclick = ()=> document.getElementById('birthdayOverlay').classList.remove('open');
+document.getElementById('birthdayOverlay').onclick = (e)=>{ if(e.target.id==='birthdayOverlay') e.currentTarget.classList.remove('open'); };
+
 /* ---------- Init ---------- */
 (async function init(){
   await loadData();
@@ -896,7 +1080,6 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   });
 }
-
 </script>
 </body>
 </html>
