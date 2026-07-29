@@ -479,8 +479,6 @@ const TYPES = [
   {id:'rdv', label:'RDV', icon:'📅'},
   {id:'pompiers', label:'Pompiers', icon:'🚒'},
   {id:'edf', label:'EDF', icon:'⚡'},
-  {id:'garde', label:'Garde enfant', icon:'🧸'},
-  {id:'autre', label:'Autre', icon:'▪️'},
 ];
 // Types réservés à un événement personnel (un seul membre sélectionné)
 const SOLO_ONLY_TYPES = ['pompiers','edf'];
@@ -499,14 +497,6 @@ const SHIFT_PRESETS = [
 ];
 // Seule la nuit EDF déclenche le blocage indispo automatique le lendemain
 const AUTO_UNAVAILABLE_PRESET_IDS = ['edf-nuit'];
-
-// Créneaux génériques pour garde enfant / autre — couleur = membre
-const GENERIC_SLOTS = [
-  {id:'matin',     label:'Matin',           start:'06:00', end:'12:00'},
-  {id:'apresmidi', label:'Après-midi',      start:'12:00', end:'18:00'},
-  {id:'soir',      label:'Soirée',          start:'18:00', end:'22:00'},
-  {id:'journee',   label:'Journée entière', start:'00:00', end:'23:59'},
-];
 
 const DEFAULT_COLORS = ['#3A5A8C','#B08900','#1E8FA6','#5B7F3A','#9C5B8C','#8C6239'];
 const REPOS_END_DEFAULT = '13:00';
@@ -533,7 +523,7 @@ const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet',
 
 /* ---------- Config API ---------- */
 // Colle ici l'URL de ton déploiement Apps Script (voir README.md)
-const API_URL = 'https://script.google.com/macros/s/AKfycbwltWjEuhwbuq81H1tM3_RpvkoT1o6ucCk90Eaj_gJLqf5mTplLZKb6t6O-iKgpCu58iA/exec';
+const API_URL = 'https://antoinemerchat-glitch.github.io/Planning-Famille-Mervel/';
 
 /* ---------- State ---------- */
 let members = [];
@@ -546,7 +536,6 @@ let addFormSelectedMembers = [];
 let addFormType = 'rdv';
 let addFormPresetId = null;
 let addFormCustomShift = false;
-let addFormSlotId = 'matin';
 
 function todayStr(){ return fmt(new Date()); }
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -616,6 +605,24 @@ function eventActiveAt(ev, dateStr, minutesOfDay){
   if(dateStr===ev.date && minutesOfDay>=startMin) return true;
   if(dateStr===addDays(ev.date,1) && minutesOfDay<endMin) return true;
   return false;
+}
+
+/* ---------- Overlap detection ---------- */
+function toDateTime(dateStr, hhmm){ return new Date(dateStr+'T'+hhmm+':00'); }
+function eventIntervalDates(ev){
+  const r = eventRange(ev);
+  const start = toDateTime(ev.date, r.start);
+  let end = toDateTime(ev.date, r.end);
+  if(end.getTime()<=start.getTime()) end = new Date(end.getTime()+86400000);
+  return {start, end};
+}
+function findOverlaps(candidate, memberId){
+  const ci = eventIntervalDates(candidate);
+  return events.filter(ev=>{
+    if(ev.memberId!==memberId) return false;
+    const ei = eventIntervalDates(ev);
+    return ci.start < ei.end && ei.start < ci.end;
+  });
 }
 
 /* ---------- Birthdays ---------- */
@@ -911,7 +918,6 @@ function renderAddForm(el, presetDate, presetMemberId){
   addFormType = 'rdv';
   addFormPresetId = null;
   addFormCustomShift = false;
-  addFormSlotId = 'matin';
 
   el.innerHTML = `
     <label>Qui</label>
@@ -1047,21 +1053,6 @@ function renderAddForm(el, presetDate, presetMemberId){
           <div><label>Début</label><input type="time" id="rdvStart" value="09:00"></div>
           <div><label>Fin</label><input type="time" id="rdvEnd" value="10:00"></div>
         </div>`;
-    } else {
-      addFormSlotId = addFormSlotId || 'matin';
-      zone.innerHTML = `<label>Créneau</label><div class="slot-picker" id="spk"></div>`;
-      const spk = zone.querySelector('#spk');
-      GENERIC_SLOTS.forEach(s=>{
-        const opt = document.createElement('div');
-        opt.className = 'slot-opt'+(s.id===addFormSlotId?' selected':'');
-        opt.textContent = s.label;
-        opt.onclick = ()=>{
-          addFormSlotId = s.id;
-          spk.querySelectorAll('.slot-opt').forEach(o=>o.classList.remove('selected'));
-          opt.classList.add('selected');
-        };
-        spk.appendChild(opt);
-      });
     }
   }
   renderDynamicZone();
@@ -1072,6 +1063,7 @@ function renderAddForm(el, presetDate, presetMemberId){
     const date = el.querySelector('#evDate').value;
     const label = el.querySelector('#evLabel').value.trim();
 
+    const toAdd = [];
     for(const memberId of addFormSelectedMembers){
       let newEvt;
       if(addFormType==='edf' || addFormType==='pompiers'){
@@ -1079,12 +1071,12 @@ function renderAddForm(el, presetDate, presetMemberId){
           const s = el.querySelector('#customStart').value || '08:00';
           const en = el.querySelector('#customEnd').value || '16:00';
           newEvt = { id: uid(), date, memberId, type: addFormType, presetId:null, start:s, end:en, label, auto:false, linkedTo:null };
-          events.push(newEvt);
+          toAdd.push(newEvt);
         } else {
           newEvt = { id: uid(), date, memberId, type: addFormType, presetId: addFormPresetId, label, auto:false, linkedTo:null };
-          events.push(newEvt);
+          toAdd.push(newEvt);
           if(AUTO_UNAVAILABLE_PRESET_IDS.includes(addFormPresetId)){
-            events.push({
+            toAdd.push({
               id: uid(), date: addDays(date,1), memberId, type:'repos',
               start:'00:00', end: REPOS_END_DEFAULT,
               label: `Indisponible après nuit EDF, jusqu'à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
@@ -1095,13 +1087,24 @@ function renderAddForm(el, presetDate, presetMemberId){
         const s = el.querySelector('#rdvStart').value || '09:00';
         const en = el.querySelector('#rdvEnd').value || '10:00';
         newEvt = { id: uid(), date, memberId, type:'rdv', start:s, end:en, label, auto:false, linkedTo:null };
-        events.push(newEvt);
-      } else {
-        const slot = GENERIC_SLOTS.find(s=>s.id===addFormSlotId);
-        newEvt = { id: uid(), date, memberId, type: addFormType, start: slot.start, end: slot.end, label, auto:false, linkedTo:null };
-        events.push(newEvt);
+        toAdd.push(newEvt);
       }
     }
+
+    const conflicts = [];
+    toAdd.forEach(evt=>{
+      findOverlaps(evt, evt.memberId).forEach(o=>{
+        const m = members.find(x=>x.id===evt.memberId);
+        const r = eventRange(o);
+        conflicts.push(`${m?m.name:'?'} : « ${eventLabel(evt)} » chevauche « ${eventLabel(o)} » (${r.start}–${r.end})`);
+      });
+    });
+    if(conflicts.length){
+      const ok = confirm('⚠️ Chevauchement détecté :\n\n' + conflicts.join('\n') + '\n\nAjouter quand même ?');
+      if(!ok) return;
+    }
+
+    toAdd.forEach(evt=> events.push(evt));
     await saveEvents();
     document.getElementById('dayOverlay').classList.remove('open');
     document.getElementById('addOverlay').classList.remove('open');
