@@ -218,11 +218,24 @@
   tr.is-today td.col-day .dnum{color:var(--accent);}
 
   td.member-cell{
-    padding:4px 5px;
+    padding:6px 5px;
     cursor:pointer;
     vertical-align:middle;
   }
   td.member-cell:hover{background:#F7F6F0;}
+  .time-bar{
+    position:relative;
+    height:16px;
+    border-radius:4px;
+    background:#EEECE1;
+    border:1px solid var(--border);
+    overflow:hidden;
+  }
+  .time-bar .seg{
+    position:absolute;
+    top:0;bottom:0;
+  }
+  .time-bar .seg.repos{background-image:var(--repos-bg);}
   .chip-stack{display:flex;flex-direction:column;gap:2px;}
   .evt-chip{
     font-size:10px;
@@ -471,6 +484,9 @@ const TYPES = [
 ];
 // Types réservés à un événement personnel (un seul membre sélectionné)
 const SOLO_ONLY_TYPES = ['pompiers','edf'];
+// Seul ce membre (par prénom, insensible à la casse) voit apparaître Pompiers/EDF.
+// Si tu renommes ce membre dans l'appli, mets à jour cette valeur.
+const SOLO_ONLY_MEMBER_NAME = 'Antoine';
 
 // Créneaux fixes EDF / Pompiers — couleur + horaires imposés
 const SHIFT_PRESETS = [
@@ -680,7 +696,12 @@ function renderTodayPill(){
 function renderTodayAvail(){
   const bdayBox = document.getElementById('todayBirthdays');
   const todays = birthdaysOn(todayStr());
-  bdayBox.innerHTML = todays.map(b=> `<div class="birthday-row">🎂 Anniversaire de ${b.name}</div>`).join('');
+  bdayBox.innerHTML = todays.map(b=>{
+    const birthYear = parseInt(b.date.slice(0,4), 10);
+    const age = new Date().getFullYear() - birthYear;
+    const ageText = (birthYear && !isNaN(age)) ? ` — ${age} an${age>1?'s':''}` : '';
+    return `<div class="birthday-row">🎂 Anniversaire de ${b.name}${ageText}</div>`;
+  }).join('');
 
   const box = document.getElementById('todayAvail');
   box.innerHTML = '';
@@ -743,6 +764,42 @@ function renderLegend(){
   ).join('') + `<span><i style="background:repeating-linear-gradient(45deg,#E4E2D8,#E4E2D8 2px,#D6D4C6 2px,#D6D4C6 4px)"></i>Repos</span>`;
 }
 
+function segmentsForCell(memberId, dateStr){
+  const segs = [];
+  events.filter(ev=>ev.date===dateStr && ev.memberId===memberId).forEach(ev=>{
+    const r = eventRange(ev);
+    const startMin = toMinutes(r.start);
+    let endMin = toMinutes(r.end);
+    if(endMin<=startMin) endMin = 1440; // nuit : va jusqu'au bord droit, suite affichée le lendemain
+    segs.push({startMin, endMin, ev});
+  });
+  const prevDateStr = addDays(dateStr,-1);
+  events.filter(ev=>ev.date===prevDateStr && ev.memberId===memberId).forEach(ev=>{
+    const r = eventRange(ev);
+    const startMin = toMinutes(r.start), endMin = toMinutes(r.end);
+    if(endMin<=startMin){
+      segs.push({startMin:0, endMin, ev, spill:true});
+    }
+  });
+  return segs;
+}
+
+function renderTimeBar(memberId, dateStr, memberColor){
+  const segs = segmentsForCell(memberId, dateStr);
+  if(!segs.length) return '<div class="time-bar"></div>';
+  const inner = segs.map(s=>{
+    const col = eventColor(s.ev, {color:memberColor});
+    const left = (s.startMin/1440*100).toFixed(2);
+    const width = Math.max((s.endMin-s.startMin)/1440*100, 1).toFixed(2);
+    const cls = 'seg' + (s.ev.type==='repos' ? ' repos' : '');
+    const bgStyle = col ? `background:${col.bg};` : '';
+    const r = eventRange(s.ev);
+    const title = `${eventLabel(s.ev)} (${r.start}–${r.end})`;
+    return `<div class="${cls}" style="left:${left}%;width:${width}%;${bgStyle}" title="${title}"></div>`;
+  }).join('');
+  return `<div class="time-bar">${inner}</div>`;
+}
+
 function renderCalendar(){
   document.getElementById('monthLabel').textContent =
     MONTH_NAMES[currentMonth.getMonth()]+' '+currentMonth.getFullYear();
@@ -780,20 +837,7 @@ function renderCalendar(){
     </td>`;
 
     members.forEach(m=>{
-      const dayEvts = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
-      let cellInner;
-      if(!dayEvts.length){
-        cellInner = '';
-      } else {
-        cellInner = '<div class="chip-stack">' + dayEvts.map(ev=>{
-          const col = eventColor(ev, m);
-          const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
-          const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '');
-          const r = eventRange(ev);
-          return `<div class="${cls}" ${style} title="${eventLabel(ev)} (${r.start}–${r.end})">${eventShortText(ev)}</div>`;
-        }).join('') + '</div>';
-      }
-      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}">${cellInner}</td>`;
+      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}">${renderTimeBar(m.id, dateStr, m.color)}</td>`;
     });
 
     tr.innerHTML = rowHtml;
@@ -895,7 +939,9 @@ function renderAddForm(el, presetDate, presetMemberId){
   const tpk = el.querySelector('#tpk');
 
   function allowedTypes(){
-    return addFormSelectedMembers.length===1 ? TYPES : TYPES.filter(t=>!SOLO_ONLY_TYPES.includes(t.id));
+    const single = addFormSelectedMembers.length===1 ? members.find(m=>m.id===addFormSelectedMembers[0]) : null;
+    const isAntoine = single && single.name.trim().toLowerCase() === SOLO_ONLY_MEMBER_NAME.toLowerCase();
+    return isAntoine ? TYPES : TYPES.filter(t=>!SOLO_ONLY_TYPES.includes(t.id));
   }
 
   function renderTypePicker(){
@@ -1078,7 +1124,7 @@ function renderBirthdayList(){
   const sorted = [...birthdays].sort((a,b)=> a.date.slice(5).localeCompare(b.date.slice(5)));
   box.innerHTML = sorted.map(b=>{
     const d = new Date(b.date+'T00:00:00');
-    const dstr = d.getDate()+' '+MONTH_NAMES[d.getMonth()];
+    const dstr = d.getDate()+' '+MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
     return `<div class="bday-item">
       <div class="bday-name">🎂 ${b.name}</div>
       <div class="bday-date">${dstr}</div>
