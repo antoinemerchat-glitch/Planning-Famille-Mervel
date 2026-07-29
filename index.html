@@ -467,9 +467,10 @@ const TYPES = [
   {id:'pompiers', label:'Pompiers', icon:'🚒'},
   {id:'edf', label:'EDF', icon:'⚡'},
   {id:'garde', label:'Garde enfant', icon:'🧸'},
-  {id:'repos', label:'Repos', icon:'💤'},
   {id:'autre', label:'Autre', icon:'▪️'},
 ];
+// Types réservés à un événement personnel (un seul membre sélectionné)
+const SOLO_ONLY_TYPES = ['pompiers','edf'];
 
 // Créneaux fixes EDF / Pompiers — couleur + horaires imposés
 const SHIFT_PRESETS = [
@@ -480,9 +481,10 @@ const SHIFT_PRESETS = [
   {id:'pomp-jour',   typeId:'pompiers', label:'Pompiers journée',start:'07:00', end:'19:00', color:'#7A4E9E', textColor:'#fff'},
   {id:'pomp-nuit',   typeId:'pompiers', label:'Pompiers nuit',   start:'19:00', end:'07:00', color:'#7A1F2B', textColor:'#fff'},
 ];
-const OVERNIGHT_PRESET_IDS = ['edf-nuit','pomp-nuit'];
+// Seule la nuit EDF déclenche le blocage indispo automatique le lendemain
+const AUTO_UNAVAILABLE_PRESET_IDS = ['edf-nuit'];
 
-// Créneaux génériques pour RDV / garde enfant / autre / repos manuel — couleur = membre
+// Créneaux génériques pour garde enfant / autre — couleur = membre
 const GENERIC_SLOTS = [
   {id:'matin',     label:'Matin',           start:'06:00', end:'12:00'},
   {id:'apresmidi', label:'Après-midi',      start:'12:00', end:'18:00'},
@@ -492,6 +494,8 @@ const GENERIC_SLOTS = [
 
 const DEFAULT_COLORS = ['#3A5A8C','#B08900','#1E8FA6','#5B7F3A','#9C5B8C','#8C6239'];
 const REPOS_END_DEFAULT = '13:00';
+
+
 
 // Vacances scolaires — Zone A (académie de Grenoble, dont fait partie l'Ardèche)
 // À compléter chaque année quand le calendrier suivant est publié.
@@ -525,6 +529,7 @@ let selectedDate = null;
 let addFormSelectedMembers = [];
 let addFormType = 'rdv';
 let addFormPresetId = null;
+let addFormCustomShift = false;
 let addFormSlotId = 'matin';
 
 function todayStr(){ return fmt(new Date()); }
@@ -566,16 +571,25 @@ function eventLabel(ev){
     if(p) return ev.label ? `${p.label} — ${ev.label}` : p.label;
   }
   const t = TYPES.find(x=>x.id===ev.type);
-  return ev.label || (t? t.label : ev.type);
+  const base = ev.label || (t? t.label : ev.type);
+  if(!ev.presetId && (ev.type==='edf' || ev.type==='pompiers')){
+    const r = eventRange(ev);
+    return `${t.label} (${r.start}–${r.end})${ev.label ? ' — '+ev.label : ''}`;
+  }
+  return base;
 }
 function eventShortText(ev){
   const r = eventRange(ev);
-  if(ev.type==='repos') return 'Repos → '+r.end;
+  if(ev.type==='repos') return 'Indispo → '+r.end;
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
     return p ? p.label.replace(/^(EDF|Pompiers)\s*/,'') : r.start;
   }
+  if(ev.type==='edf' || ev.type==='pompiers'){
+    return ev.label ? ev.label : `${r.start}–${r.end}`;
+  }
   return ev.label ? ev.label : (TYPES.find(x=>x.id===ev.type)?.label || ev.type);
+
 }
 function eventActiveAt(ev, dateStr, minutesOfDay){
   const r = eventRange(ev);
@@ -852,6 +866,7 @@ function renderAddForm(el, presetDate, presetMemberId){
   addFormSelectedMembers = presetMemberId ? [presetMemberId] : (members[0] ? [members[0].id] : []);
   addFormType = 'rdv';
   addFormPresetId = null;
+  addFormCustomShift = false;
   addFormSlotId = 'matin';
 
   el.innerHTML = `
@@ -870,14 +885,44 @@ function renderAddForm(el, presetDate, presetMemberId){
     <input type="text" id="evLabel" placeholder="Ex : Pédiatre, astreinte...">
 
     <div class="hint" id="nightHint" style="display:none;">
-      Une garde de nuit bloque automatiquement le repos le lendemain matin jusqu'à ${REPOS_END_DEFAULT}.
+      Une nuit EDF (créneau fixe) te rend automatiquement indisponible le lendemain matin jusqu'à ${REPOS_END_DEFAULT}.
     </div>
 
     <button type="submit" class="submitbtn">Ajouter</button>
   `;
 
   const mpk = el.querySelector('#mpk');
-  members.forEach(m=>{
+  const tpk = el.querySelector('#tpk');
+
+  function allowedTypes(){
+    return addFormSelectedMembers.length===1 ? TYPES : TYPES.filter(t=>!SOLO_ONLY_TYPES.includes(t.id));
+  }
+
+  function renderTypePicker(){
+    const list = allowedTypes();
+    if(!list.find(t=>t.id===addFormType)){
+      addFormType = 'rdv';
+      addFormPresetId = null;
+      addFormCustomShift = false;
+    }
+    tpk.innerHTML = '';
+    list.forEach(t=>{
+      const opt = document.createElement('div');
+      opt.className = 'type-opt'+(t.id===addFormType?' selected':'');
+      opt.textContent = t.icon+' '+t.label;
+      opt.onclick = ()=>{
+        addFormType = t.id;
+        addFormPresetId = null;
+        addFormCustomShift = false;
+        tpk.querySelectorAll('.type-opt').forEach(o=>o.classList.remove('selected'));
+        opt.classList.add('selected');
+        renderDynamicZone();
+      };
+      tpk.appendChild(opt);
+    });
+  }
+
+  const mpkOpt = (m)=>{
     const opt = document.createElement('div');
     opt.className = 'member-opt'+(addFormSelectedMembers.includes(m.id)?' selected':'');
     opt.style.color = m.color;
@@ -889,58 +934,75 @@ function renderAddForm(el, presetDate, presetMemberId){
         addFormSelectedMembers.push(m.id);
       }
       opt.classList.toggle('selected');
-    };
-    mpk.appendChild(opt);
-  });
-
-  const tpk = el.querySelector('#tpk');
-  TYPES.forEach(t=>{
-    const opt = document.createElement('div');
-    opt.className = 'type-opt'+(t.id===addFormType?' selected':'');
-    opt.textContent = t.icon+' '+t.label;
-    opt.onclick = ()=>{
-      addFormType = t.id;
-      addFormPresetId = null;
-      tpk.querySelectorAll('.type-opt').forEach(o=>o.classList.remove('selected'));
-      opt.classList.add('selected');
+      renderTypePicker();
       renderDynamicZone();
     };
-    tpk.appendChild(opt);
-  });
+    return opt;
+  };
+  members.forEach(m=> mpk.appendChild(mpkOpt(m)));
+  renderTypePicker();
 
   function renderDynamicZone(){
     const zone = el.querySelector('#dynamicSlotZone');
     const hint = el.querySelector('#nightHint');
+    hint.style.display = 'none';
 
     if(addFormType==='edf' || addFormType==='pompiers'){
       const presets = SHIFT_PRESETS.filter(p=>p.typeId===addFormType);
-      addFormPresetId = presets[0].id;
-      zone.innerHTML = `<label>Créneau</label><div class="preset-picker" id="ppk"></div>`;
+      if(!addFormCustomShift) addFormPresetId = addFormPresetId || presets[0].id;
+      zone.innerHTML = `<label>Créneau</label><div class="preset-picker" id="ppk"></div><div id="customTimeZone"></div>`;
       const ppk = zone.querySelector('#ppk');
+
       presets.forEach(p=>{
         const opt = document.createElement('div');
-        opt.className = 'preset-opt'+(p.id===addFormPresetId?' selected':'');
+        opt.className = 'preset-opt'+((!addFormCustomShift && p.id===addFormPresetId)?' selected':'');
         opt.style.background = p.color;
         opt.style.color = p.textColor;
         opt.innerHTML = `<span>${p.label}</span><span class="t">${p.start}–${p.end}</span>`;
         opt.onclick = ()=>{
           addFormPresetId = p.id;
+          addFormCustomShift = false;
           ppk.querySelectorAll('.preset-opt').forEach(o=>o.classList.remove('selected'));
           opt.classList.add('selected');
-          hint.style.display = OVERNIGHT_PRESET_IDS.includes(p.id) ? 'block' : 'none';
+          zone.querySelector('#customTimeZone').innerHTML = '';
+          hint.style.display = AUTO_UNAVAILABLE_PRESET_IDS.includes(p.id) ? 'block' : 'none';
         };
         ppk.appendChild(opt);
       });
-      hint.style.display = OVERNIGHT_PRESET_IDS.includes(addFormPresetId) ? 'block' : 'none';
-    } else if(addFormType==='repos'){
-      hint.style.display = 'none';
+
+      const customOpt = document.createElement('div');
+      customOpt.className = 'preset-opt'+(addFormCustomShift?' selected':'');
+      customOpt.style.background = 'var(--surface)';
+      customOpt.style.color = 'var(--ink)';
+      customOpt.style.borderStyle = 'dashed';
+      customOpt.innerHTML = `<span>Horaire personnalisé</span><span class="t">à définir</span>`;
+      customOpt.onclick = ()=>{
+        addFormCustomShift = true;
+        addFormPresetId = null;
+        ppk.querySelectorAll('.preset-opt').forEach(o=>o.classList.remove('selected'));
+        customOpt.classList.add('selected');
+        hint.style.display = 'none';
+        showCustomTimeInputs();
+      };
+      ppk.appendChild(customOpt);
+
+      function showCustomTimeInputs(){
+        zone.querySelector('#customTimeZone').innerHTML = `
+          <div class="time-row">
+            <div><label>Début</label><input type="time" id="customStart" value="08:00"></div>
+            <div><label>Fin</label><input type="time" id="customEnd" value="16:00"></div>
+          </div>`;
+      }
+      if(addFormCustomShift) showCustomTimeInputs();
+
+    } else if(addFormType==='rdv'){
       zone.innerHTML = `
-        <label>Repos jusqu'à</label>
-        <input type="time" id="reposEnd" value="${REPOS_END_DEFAULT}">
-      `;
+        <div class="time-row">
+          <div><label>Début</label><input type="time" id="rdvStart" value="09:00"></div>
+          <div><label>Fin</label><input type="time" id="rdvEnd" value="10:00"></div>
+        </div>`;
     } else {
-      hint.style.display = 'none';
-      addFormSlotId = 'matin';
+      addFormSlotId = addFormSlotId || 'matin';
       zone.innerHTML = `<label>Créneau</label><div class="slot-picker" id="spk"></div>`;
       const spk = zone.querySelector('#spk');
       GENERIC_SLOTS.forEach(s=>{
@@ -967,18 +1029,26 @@ function renderAddForm(el, presetDate, presetMemberId){
     for(const memberId of addFormSelectedMembers){
       let newEvt;
       if(addFormType==='edf' || addFormType==='pompiers'){
-        newEvt = { id: uid(), date, memberId, type: addFormType, presetId: addFormPresetId, label, auto:false, linkedTo:null };
-        events.push(newEvt);
-        if(OVERNIGHT_PRESET_IDS.includes(addFormPresetId)){
-          events.push({
-            id: uid(), date: addDays(date,1), memberId, type:'repos',
-            start:'00:00', end: REPOS_END_DEFAULT,
-            label: `Repos post-garde jusqu'à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
-          });
+        if(addFormCustomShift){
+          const s = el.querySelector('#customStart').value || '08:00';
+          const en = el.querySelector('#customEnd').value || '16:00';
+          newEvt = { id: uid(), date, memberId, type: addFormType, presetId:null, start:s, end:en, label, auto:false, linkedTo:null };
+          events.push(newEvt);
+        } else {
+          newEvt = { id: uid(), date, memberId, type: addFormType, presetId: addFormPresetId, label, auto:false, linkedTo:null };
+          events.push(newEvt);
+          if(AUTO_UNAVAILABLE_PRESET_IDS.includes(addFormPresetId)){
+            events.push({
+              id: uid(), date: addDays(date,1), memberId, type:'repos',
+              start:'00:00', end: REPOS_END_DEFAULT,
+              label: `Indisponible après nuit EDF, jusqu'à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
+            });
+          }
         }
-      } else if(addFormType==='repos'){
-        const endVal = el.querySelector('#reposEnd').value || REPOS_END_DEFAULT;
-        newEvt = { id: uid(), date, memberId, type:'repos', start:'00:00', end:endVal, label, auto:false, linkedTo:null };
+      } else if(addFormType==='rdv'){
+        const s = el.querySelector('#rdvStart').value || '09:00';
+        const en = el.querySelector('#rdvEnd').value || '10:00';
+        newEvt = { id: uid(), date, memberId, type:'rdv', start:s, end:en, label, auto:false, linkedTo:null };
         events.push(newEvt);
       } else {
         const slot = GENERIC_SLOTS.find(s=>s.id===addFormSlotId);
