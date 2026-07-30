@@ -605,7 +605,7 @@ function eventShortText(ev){
   if(ev.type==='conges') return ev.label ? `Congés — ${ev.label}` : 'Congés';
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
-    return p ? p.label.replace(/^(EDF|Pompiers)\s*/,'') : r.start;
+    return p ? p.label : r.start;
   }
   if(ev.type==='edf' || ev.type==='pompiers'){
     return ev.label ? ev.label : `${r.start}–${r.end}`;
@@ -739,7 +739,7 @@ function todayChipText(ev){
   if(ev.type==='repos') return `Indispo ${r.start}–${r.end}`;
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
-    return `${p.label.replace(/^(EDF|Pompiers)\s*/,'')} ${r.start}–${r.end}`;
+    return `${p.label} ${r.start}–${r.end}`;
   }
   const t = TYPES.find(x=>x.id===ev.type);
   return `${ev.label || (t?t.label:ev.type)} ${r.start}–${r.end}`;
