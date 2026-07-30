@@ -225,6 +225,18 @@
     vertical-align:middle;
   }
   td.member-cell:hover{background:#F7F6F0;}
+  .cell-flex{
+    display:flex;
+    align-items:stretch;
+    gap:4px;
+  }
+  .cell-flex > .time-bar{flex:1; min-width:0;}
+  .conges-bar{
+    width:5px;
+    min-width:5px;
+    border-radius:2px;
+    flex-shrink:0;
+  }
   .time-bar{
     position:relative;
     display:flex;
@@ -522,6 +534,11 @@ const DEFAULT_COLORS = ['#3A5A8C','#B08900','#1E8FA6','#5B7F3A','#9C5B8C','#8C62
 const REPOS_END_DEFAULT = '13:00';
 // Couleur fixe des congés, quel que soit le membre (comme EDF/Pompiers)
 const CONGES_COLOR = {bg:'#3AA6A0', fg:'#fff'};
+// Barre verticale auto pour les vacances scolaires, sur la colonne de ce
+// membre uniquement (comparaison insensible à la casse). Change ce nom si
+// tu renommes ce membre dans l'appli.
+const SCHOOL_HOLIDAYS_MEMBER_NAME = 'Maëlle';
+const SCHOOL_HOLIDAYS_COLOR = '#C98A3E';
 
 
 
@@ -847,7 +864,7 @@ function renderLegend(){
 
 function segmentsForCell(memberId, dateStr){
   return events
-    .filter(ev=> ev.memberId===memberId && dateStr>=ev.date && dateStr<=eventEndDate(ev))
+    .filter(ev=> ev.memberId===memberId && ev.type!=='conges' && dateStr>=ev.date && dateStr<=eventEndDate(ev))
     .map(ev=>{
       const r = eventRange(ev);
       const endDate = eventEndDate(ev);
@@ -856,6 +873,14 @@ function segmentsForCell(memberId, dateStr){
       if(endMin<=startMin) endMin = 1440;
       return {startMin, endMin, ev};
     });
+}
+
+function congesForCell(memberId, dateStr){
+  return events.find(ev=> ev.memberId===memberId && ev.type==='conges' && dateStr>=ev.date && dateStr<=eventEndDate(ev)) || null;
+}
+
+function isSchoolHolidayMember(member){
+  return member && member.name.trim().toLowerCase() === SCHOOL_HOLIDAYS_MEMBER_NAME.toLowerCase();
 }
 
 function renderTimeBar(memberId, dateStr, memberColor){
@@ -929,7 +954,13 @@ function renderCalendar(){
     </td>`;
 
     members.forEach(m=>{
-      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}">${renderTimeBar(m.id, dateStr, m.color)}</td>`;
+      const bars = [];
+      const conges = congesForCell(m.id, dateStr);
+      if(conges) bars.push(`<div class="conges-bar" style="background:${CONGES_COLOR.bg}" title="${eventLabel(conges)}"></div>`);
+      if(isSchoolHolidayMember(m) && holiday){
+        bars.push(`<div class="conges-bar" style="background:${SCHOOL_HOLIDAYS_COLOR}" title="${holiday.label}"></div>`);
+      }
+      rowHtml += `<td class="member-cell" data-date="${dateStr}" data-member="${m.id}"><div class="cell-flex">${bars.join('')}${renderTimeBar(m.id, dateStr, m.color)}</div></td>`;
     });
 
     tr.innerHTML = rowHtml;
