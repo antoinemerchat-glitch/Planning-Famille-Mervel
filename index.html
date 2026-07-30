@@ -532,7 +532,7 @@ const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet',
 
 /* ---------- Config API ---------- */
 // Colle ici l'URL de ton déploiement Apps Script (voir README.md)
-const API_URL = 'https://script.google.com/macros/s/AKfycby3Eb9wSBA8Pfhev8pFjFPp0hxy6p4iGuNwbwhlxZcipU8FtzQRGPUP7VD0f3pYklTFKA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzkOLcG0SX1c9rYHq6_Szqs5oxeBEgHh4fdEeseIdEhQ2zupvmf-XL8UaFEnLVIommZ_Q/exec';
 
 /* ---------- State ---------- */
 let members = [];
@@ -653,6 +653,7 @@ function holidayOn(dateStr){
 }
 
 /* ---------- Storage (Google Sheets via Apps Script) ---------- */
+let syncReady = false; // passe à true seulement si le chargement initial a réussi
 function setSyncNote(text, isError){
   const el = document.getElementById('syncNote');
   if(!el) return;
@@ -679,23 +680,40 @@ async function loadData(){
     members = (data.members && data.members.length) ? data.members : [];
     events = data.events || [];
     birthdays = data.birthdays || [];
+    syncReady = true;
     if(!members.length){ members = defaultMembers(); await saveMembers(); }
     setSyncNote('Synchronisé avec le Google Sheet familial.');
   }catch(err){
     console.error(err);
-    setSyncNote('⚠️ Connexion au Sheet impossible — données non sauvegardées pour le moment.', true);
+    syncReady = false;
+    setSyncNote('⚠️ Connexion au Sheet impossible. Recharge la page avant d\'ajouter quoi que ce soit (sinon rien ne sera sauvegardé).', true);
     if(!members.length) members = defaultMembers();
   }
 }
 async function postAction(action, payload){
   if(API_URL.includes('COLLE_ICI')) return;
+  if(!syncReady){
+    alert("⚠️ La synchronisation avec le Google Sheet n'a pas réussi au chargement de la page.\n\nPour éviter d'écraser des données existantes, cette modification n'a PAS été sauvegardée.\n\nRecharge complètement la page (et vérifie ta connexion) avant de réessayer.");
+    setSyncNote('⚠️ Sauvegarde bloquée : recharge la page (sync initiale échouée).', true);
+    return;
+  }
   try{
-    await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action, ...payload})
     });
-  }catch(e){ console.error(e); setSyncNote('⚠️ Échec de la sauvegarde.', true); }
+    const data = await res.json().catch(()=>null);
+    if(data && data.error){
+      console.error(data.error);
+      alert('⚠️ Le serveur a refusé la sauvegarde :\n\n' + data.error);
+      setSyncNote('⚠️ Sauvegarde refusée par le serveur — recharge la page.', true);
+    }
+  }catch(e){
+    console.error(e);
+    syncReady = false;
+    setSyncNote('⚠️ Échec de la sauvegarde — recharge la page avant de continuer.', true);
+  }
 }
 async function saveMembers(){ await postAction('saveMembers', {members}); }
 async function saveEvents(){ await postAction('saveEvents', {events}); }
