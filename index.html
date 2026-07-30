@@ -608,14 +608,22 @@ function eventEndDate(ev){
   return eventIsOvernight(ev) ? addDays(ev.date,1) : ev.date;
 }
 function eventColor(ev, member, dateStr){
-  if(ev.type==='repos') return null; // hachuré
+  if(ev.type==='repos') return null; // hachuré neutre
   if(ev.type==='conges') return CONGES_COLOR;
-  if(ev.type==='edf' && dateStr && congesForCell(ev.memberId, dateStr)) return null; // hachuré : congés ce jour-là
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
     if(p) return {bg:p.color, fg:p.textColor};
   }
   return {bg: member ? member.color : '#999', fg:'#fff'};
+}
+// EDF hachuré dans sa propre couleur les jours où le membre est en congés
+function isColorHatched(ev, dateStr){
+  return ev.type==='edf' && !!dateStr && !!congesForCell(ev.memberId, dateStr);
+}
+function segBackgroundStyle(col, hatched){
+  if(!col) return '';
+  if(hatched) return `background-image:repeating-linear-gradient(45deg, ${col.bg}, ${col.bg} 4px, rgba(255,255,255,.45) 4px, rgba(255,255,255,.45) 8px);`;
+  return `background:${col.bg};`;
 }
 function eventLabel(ev){
   if(ev.presetId){
@@ -808,7 +816,8 @@ function renderTodayAvail(){
 
     const chipsHtml = todaysEvts.length ? todaysEvts.map(ev=>{
       const col = eventColor(ev, m, ds);
-      const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
+      const hatched = isColorHatched(ev, ds);
+      const style = col ? `style="${segBackgroundStyle(col, hatched)}color:${col.fg}"` : '';
       const cls = 'evt-chip' + (!col ? ' repos' : '') + (ev.id===(active&&active.id) ? ' is-now' : '');
       const r = eventRange(ev);
       return `<div class="${cls}" ${style} title="${eventLabel(ev)}">${todayChipText(ev)}</div>`;
@@ -906,7 +915,7 @@ function renderTimeBar(memberId, dateStr, memberColor){
       const left = (s.startMin/1440*100).toFixed(2);
       const width = Math.max((s.endMin-s.startMin)/1440*100, 1).toFixed(2);
       const cls = 'seg' + (!col ? ' repos' : '');
-      const bgStyle = col ? `background:${col.bg};` : '';
+      const bgStyle = segBackgroundStyle(col, isColorHatched(s.ev, dateStr));
       const r = eventRange(s.ev);
       const title = `${eventLabel(s.ev)} (${r.start}–${r.end})`;
       return `<div class="${cls}" style="left:${left}%;width:${width}%;${bgStyle}" title="${title}"></div>`;
@@ -985,7 +994,8 @@ function openDayPanel(dateStr, presetMemberId){
     const dayEvts = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
     const chipsHtml = dayEvts.length ? dayEvts.map(ev=>{
       const col = eventColor(ev, m, dateStr);
-      const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
+      const hatched = isColorHatched(ev, dateStr);
+      const style = col ? `style="${segBackgroundStyle(col, hatched)}color:${col.fg}"` : '';
       const cls = 'evt-chip' + (!col ? ' repos' : '');
       const r = eventRange(ev);
       return `<div class="${cls}" ${style}>${eventShortText(ev)} · ${r.start}–${r.end}</div>`;
