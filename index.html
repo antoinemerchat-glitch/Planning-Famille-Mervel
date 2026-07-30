@@ -225,6 +225,7 @@
   }
   td.member-cell:hover{background:#F7F6F0;}
   .time-bar{
+    position:relative;
     display:flex;
     flex-direction:column;
     gap:2px;
@@ -244,6 +245,15 @@
     border-left:1.5px solid rgba(0,0,0,0.4);
   }
   .time-bar-lane .seg.repos{background-image:var(--repos-bg);}
+  .time-bar .tick{
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:1px;
+    background:rgba(0,0,0,0.45);
+    pointer-events:none;
+    z-index:3;
+  }
   .chip-stack{display:flex;flex-direction:column;gap:2px;}
   .evt-chip{
     font-size:10px;
@@ -849,7 +859,10 @@ function segmentsForCell(memberId, dateStr){
 
 function renderTimeBar(memberId, dateStr, memberColor){
   const segs = segmentsForCell(memberId, dateStr).sort((a,b)=> a.startMin-b.startMin);
-  if(!segs.length) return '<div class="time-bar"><div class="time-bar-lane"></div></div>';
+  const TICK_HOURS = [7, 12, 19];
+  const ticksHtml = TICK_HOURS.map(h=> `<div class="tick" style="left:${(h/24*100).toFixed(2)}%"></div>`).join('');
+
+  if(!segs.length) return `<div class="time-bar"><div class="time-bar-lane"></div>${ticksHtml}</div>`;
 
   // Empile les segments qui se chevauchent sur des pistes séparées (algorithme
   // glouton : chaque segment va sur la première piste libre à cet horaire).
@@ -874,7 +887,7 @@ function renderTimeBar(memberId, dateStr, memberColor){
     return `<div class="time-bar-lane">${segHtml}</div>`;
   }).join('');
 
-  return `<div class="time-bar">${lanesHtml}</div>`;
+  return `<div class="time-bar">${lanesHtml}${ticksHtml}</div>`;
 }
 
 function renderCalendar(){
