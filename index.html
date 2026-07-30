@@ -607,9 +607,10 @@ function eventEndDate(ev){
   if(ev.endDate) return ev.endDate;
   return eventIsOvernight(ev) ? addDays(ev.date,1) : ev.date;
 }
-function eventColor(ev, member){
+function eventColor(ev, member, dateStr){
   if(ev.type==='repos') return null; // hachuré
   if(ev.type==='conges') return CONGES_COLOR;
+  if(ev.type==='edf' && dateStr && congesForCell(ev.memberId, dateStr)) return null; // hachuré : congés ce jour-là
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
     if(p) return {bg:p.color, fg:p.textColor};
@@ -806,9 +807,9 @@ function renderTodayAvail(){
     }
 
     const chipsHtml = todaysEvts.length ? todaysEvts.map(ev=>{
-      const col = eventColor(ev, m);
+      const col = eventColor(ev, m, ds);
       const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
-      const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '') + (ev.id===(active&&active.id) ? ' is-now' : '');
+      const cls = 'evt-chip' + (!col ? ' repos' : '') + (ev.id===(active&&active.id) ? ' is-now' : '');
       const r = eventRange(ev);
       return `<div class="${cls}" ${style} title="${eventLabel(ev)}">${todayChipText(ev)}</div>`;
     }).join('') : '<div class="avail-status" style="margin-top:2px;">Rien de prévu aujourd\'hui</div>';
@@ -901,10 +902,10 @@ function renderTimeBar(memberId, dateStr, memberColor){
 
   const lanesHtml = lanes.map(lane=>{
     const segHtml = lane.map(s=>{
-      const col = eventColor(s.ev, {color:memberColor});
+      const col = eventColor(s.ev, {color:memberColor}, dateStr);
       const left = (s.startMin/1440*100).toFixed(2);
       const width = Math.max((s.endMin-s.startMin)/1440*100, 1).toFixed(2);
-      const cls = 'seg' + (s.ev.type==='repos' ? ' repos' : '');
+      const cls = 'seg' + (!col ? ' repos' : '');
       const bgStyle = col ? `background:${col.bg};` : '';
       const r = eventRange(s.ev);
       const title = `${eventLabel(s.ev)} (${r.start}–${r.end})`;
@@ -983,9 +984,9 @@ function openDayPanel(dateStr, presetMemberId){
   summaryBox.innerHTML = '<div class="day-summary">' + members.map(m=>{
     const dayEvts = events.filter(ev=>ev.date===dateStr && ev.memberId===m.id);
     const chipsHtml = dayEvts.length ? dayEvts.map(ev=>{
-      const col = eventColor(ev, m);
+      const col = eventColor(ev, m, dateStr);
       const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
-      const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '');
+      const cls = 'evt-chip' + (!col ? ' repos' : '');
       const r = eventRange(ev);
       return `<div class="${cls}" ${style}>${eventShortText(ev)} · ${r.start}–${r.end}</div>`;
     }).join('') : '<div class="day-summary-empty">Rien de prévu</div>';
