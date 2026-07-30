@@ -217,6 +217,7 @@
   tr.holiday td.col-day{background:var(--holiday-bg);}
   tr.is-today td.col-day{background:#E4EFE8;}
   tr.is-today td.col-day .dnum{color:var(--accent);}
+  tr.week-end-row td{border-bottom:2px solid var(--ink);}
 
   td.member-cell{
     padding:6px 5px;
@@ -919,6 +920,7 @@ function renderCalendar(){
     if(isWeekend) tr.classList.add('weekend');
     if(holiday) tr.classList.add('holiday');
     if(dateStr===ds) tr.classList.add('is-today');
+    if(dow===4 || dow===6) tr.classList.add('week-end-row'); // vendredi et dimanche
 
     const dayTitle = holiday ? holiday.label : '';
     let rowHtml = `<td class="col-day" title="${dayTitle}">
