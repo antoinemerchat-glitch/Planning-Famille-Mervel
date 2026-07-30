@@ -1,4 +1,8 @@
-const CACHE_NAME = 'famille-shell-v1';
+// v2 — réseau d'abord : sert toujours la dernière version quand il y a du
+// réseau, et ne retombe sur le cache que hors-ligne. Change CACHE_NAME à
+// chaque nouvelle version pour forcer le nettoyage des caches précédents
+// (utile après les problèmes de version bloquée en v1).
+const CACHE_NAME = 'famille-shell-v2';
 const SHELL_FILES = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -17,12 +21,19 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Coquille en cache (HTML/CSS/JS) pour ouvrir l'appli hors-ligne.
-// Les données (Google Sheet) nécessitent toujours une connexion.
+// Réseau d'abord pour la coquille (HTML/CSS/JS) : on va toujours chercher
+// la dernière version en ligne, et on ne sert le cache qu'en dépannage
+// si le réseau échoue (mode hors-ligne).
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || !req.url.startsWith(self.location.origin)) return;
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
+    fetch(req)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });
