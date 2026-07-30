@@ -1171,10 +1171,11 @@ function renderAddForm(el, presetDate, presetMemberId){
           newEvt = { id: uid(), date, memberId, type: addFormType, presetId: addFormPresetId, label, auto:false, linkedTo:null };
           toAdd.push(newEvt);
           if(AUTO_UNAVAILABLE_PRESET_IDS.includes(addFormPresetId)){
+            const nightPreset = SHIFT_PRESETS.find(p=>p.id===addFormPresetId);
             toAdd.push({
               id: uid(), date: addDays(date,1), memberId, type:'repos',
-              start:'00:00', end: REPOS_END_DEFAULT,
-              label: `Indisponible après nuit EDF, jusqu'à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
+              start: nightPreset.end, end: REPOS_END_DEFAULT,
+              label: `Indisponible après nuit EDF, de ${nightPreset.end} à ${REPOS_END_DEFAULT}`, auto:true, linkedTo:newEvt.id
             });
           }
         }
