@@ -87,17 +87,18 @@
     margin-bottom:8px;
   }
   .avail-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:6px 0;
+    padding:7px 0;
     border-top:1px solid var(--border);
   }
   .avail-row:first-of-type{border-top:none;}
+  .avail-top{display:flex;align-items:center;justify-content:space-between;}
   .avail-member{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;}
   .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
-  .avail-status{font-size:13px;color:var(--muted);}
+  .avail-status{font-size:12.5px;color:var(--muted);}
   .avail-status.busy{color:var(--ink);font-weight:500;}
+  .avail-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+  .avail-chips .evt-chip{font-size:11px;padding:3px 7px;}
+  .avail-chips .evt-chip.is-now{box-shadow:0 0 0 2px var(--ink);}
 
   /* Members legend */
   .members-bar{
@@ -523,7 +524,7 @@ const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet',
 
 /* ---------- Config API ---------- */
 // Colle ici l'URL de ton déploiement Apps Script (voir README.md)
-const API_URL = 'https://script.google.com/macros/s/AKfycbwCLBmf3pggJY1_IMUzHAWwGN7f-zDQjB4ypyc2j8PRX8uxDRklFdUdKuGwF0e7fC2-gg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzqqI6IPTGiLoLm3ctba3oUmfaiL5JtE95DovB1sn2VhCjj4zNldDyZyOhW39kdmT5KZQ/exec';
 
 /* ---------- State ---------- */
 let members = [];
@@ -562,6 +563,12 @@ function eventIsOvernight(ev){
   const r = eventRange(ev);
   return toMinutes(r.end) <= toMinutes(r.start);
 }
+// Date de fin effective d'un événement : explicite (ev.endDate) si définie,
+// sinon le lendemain automatiquement si le créneau chevauche minuit (nuit).
+function eventEndDate(ev){
+  if(ev.endDate) return ev.endDate;
+  return eventIsOvernight(ev) ? addDays(ev.date,1) : ev.date;
+}
 function eventColor(ev, member){
   if(ev.type==='repos') return null; // hachuré
   if(ev.presetId){
@@ -599,12 +606,12 @@ function eventShortText(ev){
 function eventActiveAt(ev, dateStr, minutesOfDay){
   const r = eventRange(ev);
   const startMin = toMinutes(r.start), endMin = toMinutes(r.end);
-  if(endMin > startMin){
-    return dateStr===ev.date && minutesOfDay>=startMin && minutesOfDay<endMin;
-  }
-  if(dateStr===ev.date && minutesOfDay>=startMin) return true;
-  if(dateStr===addDays(ev.date,1) && minutesOfDay<endMin) return true;
-  return false;
+  const endDate = eventEndDate(ev);
+  if(dateStr < ev.date || dateStr > endDate) return false;
+  if(dateStr===ev.date && dateStr===endDate) return minutesOfDay>=startMin && minutesOfDay<endMin;
+  if(dateStr===ev.date) return minutesOfDay>=startMin;
+  if(dateStr===endDate) return minutesOfDay<endMin;
+  return true; // jour entièrement compris entre le début et la fin
 }
 
 /* ---------- Overlap detection ---------- */
@@ -612,8 +619,7 @@ function toDateTime(dateStr, hhmm){ return new Date(dateStr+'T'+hhmm+':00'); }
 function eventIntervalDates(ev){
   const r = eventRange(ev);
   const start = toDateTime(ev.date, r.start);
-  let end = toDateTime(ev.date, r.end);
-  if(end.getTime()<=start.getTime()) end = new Date(end.getTime()+86400000);
+  const end = toDateTime(eventEndDate(ev), r.end);
   return {start, end};
 }
 function findOverlaps(candidate, memberId){
@@ -700,6 +706,17 @@ function renderTodayPill(){
     WEEKDAY_NAMES[(d.getDay()+6)%7]+' '+d.getDate()+' '+MONTH_NAMES[d.getMonth()];
 }
 
+function todayChipText(ev){
+  const r = eventRange(ev);
+  if(ev.type==='repos') return `Indispo ${r.start}–${r.end}`;
+  if(ev.presetId){
+    const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
+    return `${p.label.replace(/^(EDF|Pompiers)\s*/,'')} ${r.start}–${r.end}`;
+  }
+  const t = TYPES.find(x=>x.id===ev.type);
+  return `${ev.label || (t?t.label:ev.type)} ${r.start}–${r.end}`;
+}
+
 function renderTodayAvail(){
   const bdayBox = document.getElementById('todayBirthdays');
   const todays = birthdaysOn(todayStr());
@@ -717,18 +734,32 @@ function renderTodayAvail(){
   const nowMin = now.getHours()*60+now.getMinutes();
 
   members.forEach(m=>{
-    const active = events.find(ev=> ev.memberId===m.id && eventActiveAt(ev, ds, nowMin));
+    const todaysEvts = events.filter(ev=> ev.memberId===m.id && ds>=ev.date && ds<=eventEndDate(ev));
+    const active = todaysEvts.find(ev=> eventActiveAt(ev, ds, nowMin));
     const row = document.createElement('div');
     row.className = 'avail-row';
+
     let statusText, statusClass = 'avail-status';
     if(!active){
-      statusText = 'Disponible';
+      statusText = 'Disponible maintenant';
     } else {
       statusText = eventLabel(active);
       statusClass += ' busy';
     }
-    row.innerHTML = `<div class="avail-member"><span class="dot" style="background:${m.color}"></span>${m.name}</div>
-      <div class="${statusClass}">${statusText}</div>`;
+
+    const chipsHtml = todaysEvts.length ? todaysEvts.map(ev=>{
+      const col = eventColor(ev, m);
+      const style = col ? `style="background:${col.bg};color:${col.fg}"` : '';
+      const cls = 'evt-chip' + (ev.type==='repos' ? ' repos' : '') + (ev.id===(active&&active.id) ? ' is-now' : '');
+      const r = eventRange(ev);
+      return `<div class="${cls}" ${style} title="${eventLabel(ev)}">${todayChipText(ev)}</div>`;
+    }).join('') : '<div class="avail-status" style="margin-top:2px;">Rien de prévu aujourd\'hui</div>';
+
+    row.innerHTML = `<div class="avail-top">
+        <div class="avail-member"><span class="dot" style="background:${m.color}"></span>${m.name}</div>
+        <div class="${statusClass}">${statusText}</div>
+      </div>
+      <div class="avail-chips">${chipsHtml}</div>`;
     box.appendChild(row);
   });
 }
@@ -772,23 +803,16 @@ function renderLegend(){
 }
 
 function segmentsForCell(memberId, dateStr){
-  const segs = [];
-  events.filter(ev=>ev.date===dateStr && ev.memberId===memberId).forEach(ev=>{
-    const r = eventRange(ev);
-    const startMin = toMinutes(r.start);
-    let endMin = toMinutes(r.end);
-    if(endMin<=startMin) endMin = 1440; // nuit : va jusqu'au bord droit, suite affichée le lendemain
-    segs.push({startMin, endMin, ev});
-  });
-  const prevDateStr = addDays(dateStr,-1);
-  events.filter(ev=>ev.date===prevDateStr && ev.memberId===memberId).forEach(ev=>{
-    const r = eventRange(ev);
-    const startMin = toMinutes(r.start), endMin = toMinutes(r.end);
-    if(endMin<=startMin){
-      segs.push({startMin:0, endMin, ev, spill:true});
-    }
-  });
-  return segs;
+  return events
+    .filter(ev=> ev.memberId===memberId && dateStr>=ev.date && dateStr<=eventEndDate(ev))
+    .map(ev=>{
+      const r = eventRange(ev);
+      const endDate = eventEndDate(ev);
+      const startMin = (dateStr===ev.date) ? toMinutes(r.start) : 0;
+      let endMin = (dateStr===endDate) ? toMinutes(r.end) : 1440;
+      if(endMin<=startMin) endMin = 1440;
+      return {startMin, endMin, ev};
+    });
 }
 
 function renderTimeBar(memberId, dateStr, memberColor){
@@ -887,11 +911,13 @@ function openDayPanel(dateStr, presetMemberId){
     listBox.innerHTML = dayEvts.map(ev=>{
       const m = members.find(x=>x.id===ev.memberId);
       const r = eventRange(ev);
+      const endDate = eventEndDate(ev);
+      const spanNote = (endDate !== ev.date) ? ` → ${endDate}` : '';
       return `<div class="evt-item">
         <span class="evt-dot" style="background:${m?m.color:'#999'}"></span>
         <div class="evt-body">
           <div class="evt-title">${eventLabel(ev)}${ev.auto?' <span style="color:var(--muted);font-weight:400">(auto)</span>':''}</div>
-          <div class="evt-sub">${m?m.name:'?'} · ${r.start}–${r.end}</div>
+          <div class="evt-sub">${m?m.name:'?'} · ${r.start}–${r.end}${spanNote}</div>
         </div>
         <button class="evt-del" data-id="${ev.id}">🗑</button>
       </div>`;
@@ -1048,11 +1074,15 @@ function renderAddForm(el, presetDate, presetMemberId){
       if(addFormCustomShift) showCustomTimeInputs();
 
     } else if(addFormType==='rdv'){
+      const startDateVal = el.querySelector('#evDate').value;
       zone.innerHTML = `
         <div class="time-row">
           <div><label>Début</label><input type="time" id="rdvStart" value="09:00"></div>
           <div><label>Fin</label><input type="time" id="rdvEnd" value="10:00"></div>
-        </div>`;
+        </div>
+        <label>Date de fin</label>
+        <input type="date" id="rdvEndDate" value="${startDateVal}">
+        <div class="hint">Laisse la même date si le RDV se termine le jour même.</div>`;
     }
   }
   renderDynamicZone();
@@ -1086,7 +1116,8 @@ function renderAddForm(el, presetDate, presetMemberId){
       } else if(addFormType==='rdv'){
         const s = el.querySelector('#rdvStart').value || '09:00';
         const en = el.querySelector('#rdvEnd').value || '10:00';
-        newEvt = { id: uid(), date, memberId, type:'rdv', start:s, end:en, label, auto:false, linkedTo:null };
+        const endDate = el.querySelector('#rdvEndDate').value || date;
+        newEvt = { id: uid(), date, memberId, type:'rdv', start:s, end:en, endDate, label, auto:false, linkedTo:null };
         toAdd.push(newEvt);
       }
     }
