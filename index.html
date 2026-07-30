@@ -225,18 +225,23 @@
   }
   td.member-cell:hover{background:#F7F6F0;}
   .time-bar{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .time-bar-lane{
     position:relative;
-    height:16px;
-    border-radius:4px;
+    height:12px;
+    border-radius:3px;
     background:#EEECE1;
     border:1px solid var(--border);
     overflow:hidden;
   }
-  .time-bar .seg{
+  .time-bar-lane .seg{
     position:absolute;
     top:0;bottom:0;
   }
-  .time-bar .seg.repos{background-image:var(--repos-bg);}
+  .time-bar-lane .seg.repos{background-image:var(--repos-bg);}
   .chip-stack{display:flex;flex-direction:column;gap:2px;}
   .evt-chip{
     font-size:10px;
@@ -480,6 +485,7 @@ const TYPES = [
   {id:'rdv', label:'RDV', icon:'📅'},
   {id:'pompiers', label:'Pompiers', icon:'🚒'},
   {id:'edf', label:'EDF', icon:'⚡'},
+  {id:'conges', label:'Congés', icon:'🌴'},
 ];
 // Types réservés à un événement personnel (un seul membre sélectionné)
 const SOLO_ONLY_TYPES = ['pompiers','edf'];
@@ -501,6 +507,8 @@ const AUTO_UNAVAILABLE_PRESET_IDS = ['edf-nuit'];
 
 const DEFAULT_COLORS = ['#3A5A8C','#B08900','#1E8FA6','#5B7F3A','#9C5B8C','#8C6239'];
 const REPOS_END_DEFAULT = '13:00';
+// Couleur fixe des congés, quel que soit le membre (comme EDF/Pompiers)
+const CONGES_COLOR = {bg:'#3AA6A0', fg:'#fff'};
 
 
 
@@ -524,7 +532,7 @@ const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet',
 
 /* ---------- Config API ---------- */
 // Colle ici l'URL de ton déploiement Apps Script (voir README.md)
-const API_URL = 'https://script.google.com/macros/s/AKfycbxKo98Ww6mB-hvZLaxGluLPvjN8daQxFt8aoWhmKLfV4NGpQXBFfDTfpmvDTWQCNUm4Xw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby3Eb9wSBA8Pfhev8pFjFPp0hxy6p4iGuNwbwhlxZcipU8FtzQRGPUP7VD0f3pYklTFKA/exec';
 
 /* ---------- State ---------- */
 let members = [];
@@ -571,6 +579,7 @@ function eventEndDate(ev){
 }
 function eventColor(ev, member){
   if(ev.type==='repos') return null; // hachuré
+  if(ev.type==='conges') return CONGES_COLOR;
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
     if(p) return {bg:p.color, fg:p.textColor};
@@ -593,6 +602,7 @@ function eventLabel(ev){
 function eventShortText(ev){
   const r = eventRange(ev);
   if(ev.type==='repos') return 'Indispo → '+r.end;
+  if(ev.type==='conges') return ev.label ? `Congés — ${ev.label}` : 'Congés';
   if(ev.presetId){
     const p = SHIFT_PRESETS.find(x=>x.id===ev.presetId);
     return p ? p.label.replace(/^(EDF|Pompiers)\s*/,'') : r.start;
@@ -799,7 +809,9 @@ function renderLegend(){
   const el = document.getElementById('legendNote');
   el.innerHTML = SHIFT_PRESETS.map(p=>
     `<span><i style="background:${p.color}"></i>${p.label}</span>`
-  ).join('') + `<span><i style="background:repeating-linear-gradient(45deg,#E4E2D8,#E4E2D8 2px,#D6D4C6 2px,#D6D4C6 4px)"></i>Repos</span>`;
+  ).join('')
+  + `<span><i style="background:${CONGES_COLOR.bg}"></i>Congés</span>`
+  + `<span><i style="background:repeating-linear-gradient(45deg,#E4E2D8,#E4E2D8 2px,#D6D4C6 2px,#D6D4C6 4px)"></i>Repos</span>`;
 }
 
 function segmentsForCell(memberId, dateStr){
@@ -816,19 +828,33 @@ function segmentsForCell(memberId, dateStr){
 }
 
 function renderTimeBar(memberId, dateStr, memberColor){
-  const segs = segmentsForCell(memberId, dateStr);
-  if(!segs.length) return '<div class="time-bar"></div>';
-  const inner = segs.map(s=>{
-    const col = eventColor(s.ev, {color:memberColor});
-    const left = (s.startMin/1440*100).toFixed(2);
-    const width = Math.max((s.endMin-s.startMin)/1440*100, 1).toFixed(2);
-    const cls = 'seg' + (s.ev.type==='repos' ? ' repos' : '');
-    const bgStyle = col ? `background:${col.bg};` : '';
-    const r = eventRange(s.ev);
-    const title = `${eventLabel(s.ev)} (${r.start}–${r.end})`;
-    return `<div class="${cls}" style="left:${left}%;width:${width}%;${bgStyle}" title="${title}"></div>`;
+  const segs = segmentsForCell(memberId, dateStr).sort((a,b)=> a.startMin-b.startMin);
+  if(!segs.length) return '<div class="time-bar"><div class="time-bar-lane"></div></div>';
+
+  // Empile les segments qui se chevauchent sur des pistes séparées (algorithme
+  // glouton : chaque segment va sur la première piste libre à cet horaire).
+  const lanes = [];
+  segs.forEach(s=>{
+    let lane = lanes.find(l=> l[l.length-1].endMin <= s.startMin);
+    if(!lane){ lane = []; lanes.push(lane); }
+    lane.push(s);
+  });
+
+  const lanesHtml = lanes.map(lane=>{
+    const segHtml = lane.map(s=>{
+      const col = eventColor(s.ev, {color:memberColor});
+      const left = (s.startMin/1440*100).toFixed(2);
+      const width = Math.max((s.endMin-s.startMin)/1440*100, 1).toFixed(2);
+      const cls = 'seg' + (s.ev.type==='repos' ? ' repos' : '');
+      const bgStyle = col ? `background:${col.bg};` : '';
+      const r = eventRange(s.ev);
+      const title = `${eventLabel(s.ev)} (${r.start}–${r.end})`;
+      return `<div class="${cls}" style="left:${left}%;width:${width}%;${bgStyle}" title="${title}"></div>`;
+    }).join('');
+    return `<div class="time-bar-lane">${segHtml}</div>`;
   }).join('');
-  return `<div class="time-bar">${inner}</div>`;
+
+  return `<div class="time-bar">${lanesHtml}</div>`;
 }
 
 function renderCalendar(){
@@ -1083,6 +1109,12 @@ function renderAddForm(el, presetDate, presetMemberId){
         <label>Date de fin</label>
         <input type="date" id="rdvEndDate" value="${startDateVal}">
         <div class="hint">Laisse la même date si le RDV se termine le jour même.</div>`;
+    } else if(addFormType==='conges'){
+      const startDateVal = el.querySelector('#evDate').value;
+      zone.innerHTML = `
+        <label>Date de fin</label>
+        <input type="date" id="congesEndDate" value="${startDateVal}">
+        <div class="hint">Les congés couvrent la journée entière et peuvent se cumuler avec un autre événement (EDF, Pompiers...) ce jour-là.</div>`;
     }
   }
   renderDynamicZone();
@@ -1119,12 +1151,18 @@ function renderAddForm(el, presetDate, presetMemberId){
         const endDate = el.querySelector('#rdvEndDate').value || date;
         newEvt = { id: uid(), date, memberId, type:'rdv', start:s, end:en, endDate, label, auto:false, linkedTo:null };
         toAdd.push(newEvt);
+      } else if(addFormType==='conges'){
+        const endDate = el.querySelector('#congesEndDate').value || date;
+        newEvt = { id: uid(), date, memberId, type:'conges', start:'00:00', end:'23:59', endDate, label, auto:false, linkedTo:null };
+        toAdd.push(newEvt);
       }
     }
 
     const conflicts = [];
     toAdd.forEach(evt=>{
+      if(evt.type==='conges') return; // les congés peuvent se cumuler sans alerte
       findOverlaps(evt, evt.memberId).forEach(o=>{
+        if(o.type==='conges') return;
         const m = members.find(x=>x.id===evt.memberId);
         const r = eventRange(o);
         conflicts.push(`${m?m.name:'?'} : « ${eventLabel(evt)} » chevauche « ${eventLabel(o)} » (${r.start}–${r.end})`);
